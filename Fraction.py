@@ -24,6 +24,7 @@ class Fraction(object):
     def __str__(self):
         return str(self.num) + " / " + str(self.den)
 
+
     #Overriding the arithmetic operation for Fractions
     def __add__(self, other):
         den = other.den * self.den
@@ -36,14 +37,17 @@ class Fraction(object):
         other.num *= -1
         return self.__add__(other)
 
+
     def __mul__(self, other):
         num = self.num * other.num
         den = self.den * self.den
         common = gcd(num, den)
         return Fraction(num//common , den//common)
 
+
     def __div__(self, other):
         other.num, other.den = other.den, other.num
+
 
     #Right way to check if two fractions are equal
     def __eq__(self, other):
@@ -51,16 +55,13 @@ class Fraction(object):
         num1 = self.num*other.den
         num2 = self.den*other.num
         return num1==num2
-    
+
     def __lt__(self, other):
         return(self.num/self.den < other.num/other.den)
+
+
     def __gt__(self, other):
         return(other.__lt__(self))
-
-
-
-
-
 
 
 
