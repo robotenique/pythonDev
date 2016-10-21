@@ -162,6 +162,9 @@ class NorGate(BinaryGate):
 
 
 def main():
+    # Here we proof that :
+    # NOT ((A and B) or (C and D)) equals NOT(A and B) and NOT(C and D)
+
     # Equivalence 1
     g1 = AndGate("G1")
     g2 = AndGate("G2")
