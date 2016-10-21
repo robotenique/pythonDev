@@ -13,7 +13,7 @@ class LogicGate:
 
 
     def getOutput(self):
-        # Noice Polymorphism O.O
+        # Noice Polymorphism O.O.
         self.output = self.performGateLogic()
         return self.output
 
@@ -40,14 +40,14 @@ class BinaryGate(LogicGate):
         if self.pinA == None:
             return int(input("Enter pin A input for gate "+self.getName()+": "))
         else:
-            self.pinA.getFrom().getOutput()
+            return self.pinA.getFrom().getOutput()
 
 
     def getPinB(self):
         if self.pinB == None:
             return int(input("Enter pin B input for gate "+self.getName()+": "))
         else:
-            self.pinB.getFrom().getOutput()
+            return self.pinB.getFrom().getOutput()
 
 class UnaryGate(LogicGate):
     """docstring for UnaryGate
@@ -68,7 +68,7 @@ class UnaryGate(LogicGate):
         if self.pin == None:
             return int(input("Enter pin input for gate "+self.getName()+": "))
         else:
-            self.pin.getFrom().getOutput()
+            return self.pin.getFrom().getOutput()
 
 class AndGate(BinaryGate):
     """docstring for AndGate
