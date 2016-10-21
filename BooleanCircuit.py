@@ -17,7 +17,6 @@ class LogicGate:
         self.output = self.performGateLogic()
         return self.output
 
-
 class BinaryGate(LogicGate):
     """docstring for BinaryGate
         Implements a Logic Gate which receives two inputs
@@ -25,7 +24,7 @@ class BinaryGate(LogicGate):
     def __init__(self, name):
         LogicGate.__init__(self, name)
         self.pinA = None
-        self.PinB = None
+        self.pinB = None
 
     def setNextPin(self, source):
         if self.pinA == None:
@@ -34,7 +33,7 @@ class BinaryGate(LogicGate):
             if self.pinB == None:
                 self.pinB = source
             else:
-                raise RuntimeError("ERROR: NO EMPY PINS!")
+                raise RuntimeError("ERROR: NO EMPTY PINS!")
 
 
     def getPinA(self):
@@ -50,7 +49,6 @@ class BinaryGate(LogicGate):
         else:
             self.pinB.getFrom().getOutput()
 
-
 class UnaryGate(LogicGate):
     """docstring for UnaryGate
         Implements a Logic Gate which receives one input
@@ -60,9 +58,17 @@ class UnaryGate(LogicGate):
         self.pin = None
 
 
-    def getPin(self):
-        return int(input("Enter pin input for gate "+self.getName()+": "))
+    def setNextPin(self, source):
+        if self.pin == None:
+            self.pin = source
+        else:
+            print(" CANNOT CONNECT: NO EMPTY PIN!")
 
+    def getPin(self):
+        if self.pin == None:
+            return int(input("Enter pin input for gate "+self.getName()+": "))
+        else:
+            self.pin.getFrom().getOutput()
 
 class AndGate(BinaryGate):
     """docstring for AndGate
@@ -78,7 +84,6 @@ class AndGate(BinaryGate):
         if a == 1 and b == 1:
             return 1
         return 0
-
 
 class OrGate(BinaryGate):
     """docstring for OrGate
@@ -109,7 +114,6 @@ class NotGate(UnaryGate):
             return 0
         return 1
 
-
 class Conector:
     """docstring for Conector
         Connects two gates together, redirecting the input and output
@@ -117,6 +121,7 @@ class Conector:
     def __init__(self, fgate, tgate):
         self.fromGate = fgate
         self.toGate = tgate
+        print("tgate = "+fgate.name)
         tgate.setNextPin(self)
 
 
@@ -128,10 +133,14 @@ class Conector:
         return self.toGate
 
 
-
-
 def main():
-    gate = NotGate("topKEK")
-    print(gate.getOutput())
+    g1 = AndGate("G1")
+    g2 = AndGate("G2")
+    g3 = OrGate("G3")
+    g4 = NotGate("G4")
+    c1 = Conector(g1, g3)
+    c2 = Conector(g2, g3)
+    c3 = Conector(g3, g4)
+    print(g4.getOutput())
 if __name__ == '__main__':
     main()
