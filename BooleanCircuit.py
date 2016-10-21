@@ -14,6 +14,7 @@ class LogicGate:
 
     def getOutput(self):
         # Noice Polymorphism O.O.
+        # Noice Polymorphism O.O
         self.output = self.performGateLogic()
         return self.output
 
@@ -121,7 +122,6 @@ class Conector:
     def __init__(self, fgate, tgate):
         self.fromGate = fgate
         self.toGate = tgate
-        print("tgate = "+fgate.name)
         tgate.setNextPin(self)
 
 
@@ -132,15 +132,51 @@ class Conector:
     def getTo(self):
         return self.toGate
 
+class NandGate(BinaryGate):
+    """docstring for NandGate
+        Implements a NAND Gate
+    """
+    def __init__(self, name):
+        BinaryGate.__init__(self, name)
+
+    def performGateLogic(self):
+        a = self.getPinA()
+        b = self.getPinB()
+        if a == 1 and b == 1:
+            return 0
+        return 1
+
+class NorGate(BinaryGate):
+    """docstring for NorGate
+        Implements a NOR gate!
+    """
+    def __init__(self, name):
+        BinaryGate.__init__(self, name)
+
+    def performGateLogic(self):
+        a = self.getPinA()
+        b = self.getPinB()
+        if a == 1 or b == 1:
+            return 0
+        return 1
+
 
 def main():
+    # Equivalence 1
     g1 = AndGate("G1")
     g2 = AndGate("G2")
-    g3 = OrGate("G3")
-    g4 = NotGate("G4")
+    g3 = NorGate("G3")
     c1 = Conector(g1, g3)
     c2 = Conector(g2, g3)
-    c3 = Conector(g3, g4)
-    print(g4.getOutput())
+
+    #Equivalence 2
+    g_1 = NandGate("g_1")
+    g_2 = NandGate("g_2")
+    g_3 = AndGate("g_3")
+    c_1 = Conector(g_1, g_3)
+    c_2 = Conector(g_2, g_3)
+
+    print(g3.getOutput())
+    print(g_3.getOutput())
 if __name__ == '__main__':
     main()
