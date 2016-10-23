@@ -17,10 +17,13 @@ class Fraction(object):
         default numerator and denominator to the init method.
         """
     def __init__(self, num, den):
-        if num is not int or den is not int:
+        if type(num) != int or type(den) != int:
             raise RuntimeError("Only integers values supported for fraction!")
         if den == 0:
             raise RuntimeError("ERROR: denominator equals zero!")
+        if den < 0:
+            num *= -1
+            den *= -1
         common = gcd(num, den)
         self.num = num//common
         self.den = den//common
@@ -75,11 +78,17 @@ class Fraction(object):
         return divA / divB
 
 
-def main():
-    myf = Fraction(1, 22)
-    myf2 = Fraction(1, 2)
-    print(myf != myf2)
+    def __iadd__(self, other):
+        ret = self.__add__(other)
+        ret = Fraction(ret.num, ret.den)
+        self = ret
 
+
+def main():
+    myf  = Fraction(1, 2)
+    myf2 = Fraction(1, 2)
+    myf += myf2
+    print(myf+myf2)
 
 
 
