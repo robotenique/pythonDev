@@ -7,16 +7,15 @@ class LogicGate:
         self.name = name
         self.output = None
 
-
     def getName(self):
         return self.name
-
 
     def getOutput(self):
         # Noice Polymorphism O.O.
         # Noice Polymorphism O.O
         self.output = self.performGateLogic()
         return self.output
+
 
 class BinaryGate(LogicGate):
     """docstring for BinaryGate
@@ -28,27 +27,26 @@ class BinaryGate(LogicGate):
         self.pinB = None
 
     def setNextPin(self, source):
-        if self.pinA == None:
+        if self.pinA is None:
             self.pinA = source
         else:
-            if self.pinB == None:
+            if self.pinB is None:
                 self.pinB = source
             else:
                 raise RuntimeError("ERROR: NO EMPTY PINS!")
 
-
     def getPinA(self):
-        if self.pinA == None:
+        if self.pinA is None:
             return int(input("Enter pin A input for gate "+self.getName()+": "))
         else:
             return self.pinA.getFrom().getOutput()
 
-
     def getPinB(self):
-        if self.pinB == None:
+        if self.pinB is None:
             return int(input("Enter pin B input for gate "+self.getName()+": "))
         else:
             return self.pinB.getFrom().getOutput()
+
 
 class UnaryGate(LogicGate):
     """docstring for UnaryGate
@@ -58,18 +56,18 @@ class UnaryGate(LogicGate):
         LogicGate.__init__(self, name)
         self.pin = None
 
-
     def setNextPin(self, source):
-        if self.pin == None:
+        if self.pin is None:
             self.pin = source
         else:
             print(" CANNOT CONNECT: NO EMPTY PIN!")
 
     def getPin(self):
-        if self.pin == None:
+        if self.pin is None:
             return int(input("Enter pin input for gate "+self.getName()+": "))
         else:
             return self.pin.getFrom().getOutput()
+
 
 class AndGate(BinaryGate):
     """docstring for AndGate
@@ -78,13 +76,13 @@ class AndGate(BinaryGate):
     def __init__(self, n):
         BinaryGate.__init__(self, n)
 
-
     def performGateLogic(self):
         a = self.getPinA()
         b = self.getPinB()
         if a == 1 and b == 1:
             return 1
         return 0
+
 
 class OrGate(BinaryGate):
     """docstring for OrGate
@@ -93,13 +91,13 @@ class OrGate(BinaryGate):
     def __init__(self, name):
         BinaryGate.__init__(self, name)
 
-
     def performGateLogic(self):
         a = self.getPinA()
         b = self.getPinB()
         if a == 1 or b == 1:
             return 1
         return 0
+
 
 class NotGate(UnaryGate):
     """docstring for NotGate
@@ -108,12 +106,12 @@ class NotGate(UnaryGate):
     def __init__(self, name):
         UnaryGate.__init__(self, name)
 
-
     def performGateLogic(self):
         pin = self.getPin()
         if pin == 1:
             return 0
         return 1
+
 
 class Conector:
     """docstring for Conector
@@ -124,13 +122,12 @@ class Conector:
         self.toGate = tgate
         tgate.setNextPin(self)
 
-
     def getFrom(self):
         return self.fromGate
 
-
     def getTo(self):
         return self.toGate
+
 
 class NandGate(BinaryGate):
     """docstring for NandGate
@@ -145,6 +142,7 @@ class NandGate(BinaryGate):
         if a == 1 and b == 1:
             return 0
         return 1
+
 
 class NorGate(BinaryGate):
     """docstring for NorGate
@@ -172,7 +170,7 @@ def main():
     c1 = Conector(g1, g3)
     c2 = Conector(g2, g3)
 
-    #Equivalence 2
+    # Equivalence 2
     g_1 = NandGate("g_1")
     g_2 = NandGate("g_2")
     g_3 = AndGate("g_3")
