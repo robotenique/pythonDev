@@ -10,7 +10,7 @@ from fractions import Fraction
 from functools import reduce
 
 def main():
-    lenProb = 3
+    lenProb = 4
     menu = [[] for x in range(lenProb)]
     menu[0] = [
         "--- Welcome to the ProbDistributions =) ---\n",
@@ -28,6 +28,11 @@ def main():
         "\n---POISSON DISTRIBUTION: k sucesses in a given time with rate λ ---",
         "k",
         "λ",
+    ]
+    menu[3] = [
+        "\n---GEOMETRIC DISTRIBUTION: success in the k-th try, with each try with probability p (each try)  ---",
+        "k",
+        "p",
     ]
     readIn = lambda x: float(input(x + " = "))
     probDistr = [0, binomial, poisson]
@@ -76,7 +81,8 @@ def poisson(*args):
         print(err)
         exit()
 
-
+def geometric(*args):
+    pass
 
 if __name__ == '__main__':
     main()
