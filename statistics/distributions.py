@@ -10,13 +10,16 @@ from fractions import Fraction
 from functools import reduce
 
 def main():
-    lenProb = 4
-    menu = [[] for x in range(lenProb)]
+    lenProb = 6
+    menu = [[] for x in range(lenProb + 1)]
     menu[0] = [
         "--- Welcome to the ProbDistributions =) ---\n",
         "You may choose one of the options below: \n",
         "[1] - Binomial Distribution\n",
         "[2] - Poisson Distribution\n"
+        "[3] - Geometric Distribution\n"
+        "[4] - Negative Binomial Distribution\n"
+        "[5] - Hipergeometric Distribution\n"
     ]
     menu[1] = [
         "\n---BINOMIAL DISTRIBUTION: k sucesses in n tries, with probability p (each try) ---",
@@ -30,12 +33,26 @@ def main():
         "λ",
     ]
     menu[3] = [
-        "\n---GEOMETRIC DISTRIBUTION: success in the k-th try, with each try with probability p (each try)  ---",
+        "\n---GEOMETRIC DISTRIBUTION: success in the k-th try, with probability p (each try)  ---",
         "k",
         "p",
     ]
+    menu[4] = [
+        "\n---NEGATIVE BINOMIAL DISTRIBUTION: number of tries until the k-th sucess, each with probability p (each try) ---",
+        "k",
+        "p",
+        "x"
+    ]
+    menu[5] = [
+        "\n---HIPERGEOMETRIC DISTRIBUTION: The probability of k successes in n draws, from a population with \n \
+        size N, with total of K successes in the population ---",
+        "k",
+        "n",
+        "N",
+        "K"
+    ]
     readIn = lambda x: float(input(x + " = "))
-    probDistr = [0, binomial, poisson]
+    probDistr = [0, binomial, poisson, geometric, negativeBinomial, hipergeometric]
     try:
         print("".join(menu[0]))
         io = int(input("==> "))
@@ -48,9 +65,6 @@ def main():
         print("You didn't chose a correct input, now i'll kill myself! ;(")
         exit()
 
-
-
-
 def binCoeff(n, x):
     '''
     Calculates the Binomial coefficient in the form nCx
@@ -58,8 +72,6 @@ def binCoeff(n, x):
     # Calculate the binomial coefficient
     binC = reduce(lambda x,y: x*y, (Fraction(n - i, i + 1) for i in range(x)), 1)
     return(int(binC))
-
-
 
 def binomial(*args):
     try:
@@ -82,7 +94,42 @@ def poisson(*args):
         exit()
 
 def geometric(*args):
-    pass
+    try:
+        k, p = int(args[0][0]), args[0][1]
+        if p < 0 or p > 1 or k < 0:
+            raise ValueError("Wrong probability value ("+str(p)+") !")
+        return(p*((1-p)**(k - 1)))
+    except ValueError as err:
+        print("ERROR:", err)
+        exit()
+
+def negativeBinomial(*args):
+    try:
+        k, p, x = int(args[0][0]), args[0][1], int(args[0][2])
+        if p < 0 or p > 1 or k < 0 or x < k or k > 20000 or x > 20000:
+            raise ValueError("You wrote a wrong input!")
+        return(binCoeff(x - 1, k - 1)*(p**k)*((1 - p)**(x - k)))
+    except ValueError as err:
+        print("ERROR: ", err)
+        exit()
+
+def hipergeometric(*args):
+    try:
+        verify = lambda x: x > 20000 or x < 0
+        k, n, Ntot, Ktot = int(args[0][0]), int(args[0][1]), int(args[0][2]), int(args[0][3])
+        if all([verify(i) for i in [k, n, Ntot, Ktot]]):
+            raise ValueError("Verify your input again mate!! >:(")
+        num = binCoeff(Ktot, k) * binCoeff(Ntot - Ktot, n - k)
+        den = binCoeff(Ntot, n)
+        return(num/den)
+    except ValueError as err:
+        print("ERROR: ", err)
+        exit()
+
+
+
+
+
 
 if __name__ == '__main__':
     main()
