@@ -2,10 +2,15 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.image as img
 import matplotlib.pyplot as plt
 import numpy as np
+import subprocess as sbp
 
 '''
     Rotates the color vector of the image into the 3D space,
     by the angle 'theta' provided, then generates a gif image.
+
+    Probably only works with JPG, untested in other image formats.
+
+    -> My guess is that this will be unreadeable >.<
 '''
 
 def n(im):
@@ -39,8 +44,17 @@ def upd(i):
     ax.set_title("BEM LOCO")
     ax.set_axis_off()
 
+def showImages():
+    print("Showing images in the current directory (JPG only supported): ")
+    sbp.Popen("ls -c | egrep \".\.png\"",shell=True)
+
+showImages()
 fig, ax = plt.subplots(figsize=(10,10))
-im = img.imread("oi.jpg")
+#imgAvailable = sbp.check_output("")
+
+imgName = input("Type the name of image (for ex. img.jpg) and press [ENTER]:")
+im = img.imread(imgName)
 anim = FuncAnimation(fig, upd, frames=np.arange(0,50), interval=50)
 anim.save("top.gif", dpi=80, writer="imagemagick")
 plt.close()
+print("GIF GENERATED! Open the file \"top.gif\" to see the effects!")

@@ -15,6 +15,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
+#USAGE: cat speedtest.py > speedytest
+#		chmod +x speedtest
+#		./speedtest
 import os
 import re
 import csv
