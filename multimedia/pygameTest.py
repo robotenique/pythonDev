@@ -1,56 +1,68 @@
-import random as rnd
 import pygame
-import sys
 
-def generateObj():
-    objPos = (rnd.randint(50, 950), rnd.randint(50, 950))
-    objColor = (0, 0, 0)
-    return list([objColor, objPos])
+SCREEN_WIDTH = 1366
+SCREEN_HEIGHT = 728
 
+BKG_COLOR = (0,0,0)
+
+FPS = 30
 
 pygame.init()
-bgcolor = (255, 255, 204)
-surf = pygame.display.set_mode((1000,1000))
 
-circleColor = (255, 51, 51)
-x, y = 500, 500
-circleRad = 50
-objRad = 25
-
-
-pygame.display.set_caption("TOOOPPPER!")
-obj = generateObj()
-change = False
-
-while True:
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+myfont = pygame.font.SysFont("monotype", 45)
+pygame.display.set_caption("Simulation 1")
+# - objects -
+# render text
+label = myfont.render("DR. Eggman!", 1, (0, 200, 250))
+screen.blit(label, (0, 0))
+# render rect
+lRect = pygame.rect.Rect((0, 0), (label.get_width(), label.get_height()))
+print(lRect)
+lRectDrag = False
+# - mainloop -
+clock = pygame.time.Clock()
+running = True
+while running:
+    # - events -
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            sys.exit()
-        elif event.type == pygame.KEYDOWN:
-            bgcolor = (rnd.randint(50,255), rnd.randint(200,255), rnd.randint(200,255))
-            circleColor = (rnd.randint(0,255), rnd.randint(0,255), rnd.randint(0,255))
-            if(change == True):
-                obj = generateObj()
-                change = False
+            running = False
 
-            if event.key == pygame.K_UP:
-                y -= 40
-            elif event.key == pygame.K_DOWN:
-                y += 40
-            elif event.key == pygame.K_RIGHT:
-                x += 40
-            elif event.key == pygame.K_LEFT:
-                x -= 40
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                if lRect.collidepoint(event.pos):
+                    lRectDrag = True
+                    mouse_x, mouse_y = event.pos
+                    offset_x = lRect.x - mouse_x
+                    offset_y = lRect.y - mouse_y
 
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                lRectDrag = False
 
-    circlePos = (x % 1000, y % 1000)
-    surf.fill(bgcolor)
-    if((circlePos[0] - obj[1][0])**2 + (circlePos[1] - obj[1][1])**2 <= (objRad+circleRad)**2):
-        obj[1] = (-400, -400)
-        circleRad += 20
-        change = True
-    if(circleRad >= 450):
-        sys.exit()
-    pygame.draw.circle(surf, circleColor, circlePos, circleRad)
-    pygame.draw.circle(surf, obj[0], obj[1], objRad)
+        elif event.type == pygame.MOUSEMOTION:
+            if lRectDrag:
+                mouse_x, mouse_y = event.pos
+                lRect.x = mouse_x + offset_x
+                lRect.y = mouse_y + offset_y
+
+    # - updates (without draws) -
+
+    # empty
+
+    # - draws (without updates) -
+
+    screen.fill(BKG_COLOR)
+
+    pygame.draw.rect(screen, BKG_COLOR, lRect)
+
     pygame.display.flip()
+
+    # - constant game speed / FPS -
+
+    clock.tick(FPS)
+
+# - end -
+
+#pygame.quit()
