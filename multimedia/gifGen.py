@@ -54,7 +54,7 @@ fig, ax = plt.subplots(figsize=(10,10))
 
 imgName = input("Type the name of image (for ex. img.jpg) and press [ENTER]:")
 im = img.imread(imgName)
-anim = FuncAnimation(fig, upd, frames=np.arange(0,50), interval=50)
+anim = FuncAnimation(fig, upd, frames=np.arange(0,50), interval=16.6)
 anim.save("top.gif", dpi=80, writer="imagemagick")
 plt.close()
 print("GIF GENERATED! Open the file \"top.gif\" to see the effects!")
