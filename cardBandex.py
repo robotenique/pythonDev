@@ -131,8 +131,14 @@ def print_usage(wrong_arg=None):
     runF = lambda x: "\033[38;5;4m"+x+"\033[38;5;7m"
     flagF = lambda x: "\033[38;5;46m"+x+"\033[38;5;7m"
     if(wrong_arg != None):
-        print("😞😞😞 Poxa "+sb.check_output(["whoami"]).decode("utf-8").replace("\n","")+"," +err("argumento \""+wrong_arg+"\" é inválido! ")+"😞😞😞")
-    print("Uso:\n $ "+runF("bandex")+"\n\t Imprime o cardápio do dia de todos os restaurantes, com as refeições de acordo com o horário de execução do script;\n"+flagF("FLAGS:")+"\n\t"+flagF("-a")+" : Imprime apenas os almoços;"+"\n\t"+flagF("-j")+" : Imprime apenas os jantares;"+"\n\t"+flagF("-all")+" : Imprime todas as refeições do dia;""\n\t"+flagF("-h ou --help")+" : Imprime esta página de informação.\n")
+        print("😞😞😞 Poxa "+sb.check_output(["whoami"]).decode("utf-8").replace("\n","")+
+              "," +err("argumento \""+wrong_arg+"\" é inválido! ")+"😞😞😞")
+    print("Uso:\n $ "+runF("bandex")+"\n\t Imprime o cardápio do dia de todos os restau"
+          "rantes, com as refeições de acordo com o horário de execução do script;\n"+
+          flagF("FLAGS:")+"\n\t"+flagF("-a")+" : Imprime apenas os almoços;"+"\n\t"+
+          flagF("-j")+" : Imprime apenas os jantares;"+"\n\t"+flagF("-all")+" : Imprime"
+          " todas as refeições do dia;""\n\t"+flagF("-h ou --help")+" : Imprime esta"
+          "página de informação.\n")
     exit()
 
 def main():
