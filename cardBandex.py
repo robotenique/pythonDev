@@ -2,8 +2,12 @@
 import subprocess as sb
 import html
 import re
+import time
+from datetime import datetime as dt
 import datetime
 import sys
+from tinyDB import TinyDB, Query
+
 # Global variables
 WHITE = "\033[38;5;7m"
 GRAY = "\033[38;5;252m"
@@ -16,7 +20,7 @@ are a string to NOT match.
 For example, if you don't like "pudim de abacate" you put "pudim, abacate",
 so then it won't match if the word contains "pudim", but not "abacate"!
 '''
-featured = ["mel", "queijo", "doce, batata", "pudim", "flan", "sugo"]
+featured = ["mel", "queijo", "doce, batata", "pudim", "flan", "sugo", "batata"]
 def get_command(rID):
     cmd = ["curl", "-sw", "-H", "\"Host:uspdigital.usp.br\nConnection:keep-alive\nContent-Length:280\nOrigin:https://uspdigital.usp.br\nUser-Agent:Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Mobile Safari/537.36\nContent-Type:text/plain\nAccept:*/*\nReferer:https://uspdigital.usp.br/rucard/Jsp/cardapioSAS.jsp\nAccept-Encoding:gzip, deflate, br\nAccept-Language:pt-BR,pt;q=0.8,en-US;q=0.6,en;q=0.4,fr;q=0.2\nRequest Payload:\"", "-X", "POST", "-d","callCount=1\nwindowName=1\nnextReverseAjaxIndex=0\nc0-scriptName=CardapioControleDWR\nc0-methodName=obterCardapioRestUSP\nc0-id=0\nc0-param0=string:{}\nbatchId=1\ninstanceId=0\npage=%2Frucard%2FJsp%2FcardapioSAS.jsp%3Fcodrtn%3D0\nscriptSessionId=".format(rID), "https://uspdigital.usp.br/rucard/dwr/call/plaincall/CardapioControleDWR.obterCardapioRestUSP.dwr"]
     return cmd
@@ -46,7 +50,7 @@ def create_cardapio(r):
 def app_h(k):
     for f in featured:
         f = [x.strip().lower() for x in f.split(",")]
-        if f[0] in k.lower():
+        if f[0] in k.lower().split(" "):
             if(len(list((x for x in f[1:] if x in k.lower()))) == 0):
                 return "\033[4m\033[38;5;165m*"+k.strip()+"*\033[0m"
     return k
@@ -101,6 +105,43 @@ def format_str(name, tag, char="=", sz=50, addIcons=True):
         bdSt = [" " for x in range((50 - len(bdSt))//2)] + bdSt
     return "".join(bdSt)
 
+def execute_query(cardapio, code):
+    days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+    rests = ["fisica", "quimica", "prefeitura", "central"]
+    ts = time.time()
+    ts = dt.fromtimestamp(ts).strftime("%d-%m-%Y")
+    dict_res = {key : value for (key, value) in zip([8, 9, 7, 6], rests)}
+    refeicao = cardapio[days[dt.today().weekday()]]
+    weekday = days[dt.today().weekday()].lower()
+    db = TinyDB("cardapio.json")
+    ingr_table = db.table("ingrediente")
+    rest_table = db.table(dict_res[code])
+    almoco = generate_refeicao(refeicao[0].strip().split("\n"), ingr_table)
+    jantar = generate_refeicao(refeicao[1].strip().split("\n"), ingr_table)
+    almoco = almoco if almoco else False
+    jantar = jantar if jantar else False
+    if almoco or jantar:
+        rest_table.insert({"data" : ts, "diasemana" : weekday,
+                           "almoco" : almoco, "jantar" : jantar})
+
+def generate_refeicao(list_i, table):
+    list_i = list(filter(None, list_i))
+    if(len(list_i) < 2): return None
+    dict_keys = ["comum", "principal", "opcao", "acomp", "sobremesa", "adicional"]
+    dict_refeicao = dict()
+    for (key, value) in zip(dict_keys, list_i):
+        dict_refeicao[key] = value.replace("Opção:","").strip().lower()
+    queryS = Query()
+    for ingr in list_i:
+        ingr = ingr.strip().lower()
+        query_result = table.search(queryS.tipo == ingr)
+        if(len(query_result) == 0):
+            table.insert({"tipo" : ingr , "qtd" : 1})
+        else:
+            preCount = query_result[0]["qtd"]
+            table.update({"qtd" : preCount + 1}, queryS.tipo == ingr)
+    return dict_refeicao
+
 def print_AllBdex(tag, dump=False):
     print_logo()
     for name, code in bCodes.items():
@@ -110,9 +151,8 @@ def print_AllBdex(tag, dump=False):
         cdp = create_cardapio(cdp)
         if(not dump):
             print_day(cdp, tag, GRAY, code=code)
-        else: # TODO: generate code and add to a database
-            pass
-
+        else:
+            execute_query(cdp, code)
 
 def print_logo():
     fadeColors = ["\033[38;5;{}m".format(i) for i in range(118, 124)]
@@ -125,7 +165,6 @@ def print_logo():
     for color, line  in zip(fadeColors, logo):
         print(color+line, end="", sep="")
 
-# TODO: add usage
 def print_usage(wrong_arg=None):
     err = lambda x: "\033[38;5;160m "+x+"\033[38;5;7m"
     runF = lambda x: "\033[38;5;4m"+x+"\033[38;5;7m"
@@ -153,6 +192,9 @@ def main():
             tag = " (Jantar)"
         elif(sys.argv[1] == "-all"):
             tag = ""
+        elif(sys.argv[1] == "-topkek"):
+            print_AllBdex("", dump=True)
+            exit()
         elif(sys.argv[1] == "-h" or sys.argv[1] == "--help"):
             print_usage()
         else:
