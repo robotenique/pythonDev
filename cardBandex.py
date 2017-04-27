@@ -6,7 +6,7 @@ import time
 from datetime import datetime as dt
 import datetime
 import sys
-from tinyDB import TinyDB, Query
+from tinydb import TinyDB, Query
 
 # Global variables
 WHITE = "\033[38;5;7m"
@@ -182,6 +182,7 @@ def print_usage(wrong_arg=None):
 
 def main():
     #print(sb.check_output(["whoami"]))
+
     if(len(sys.argv) == 1):
         tag = get_TimeTag()
         print_AllBdex(tag)
@@ -192,12 +193,17 @@ def main():
             tag = " (Jantar)"
         elif(sys.argv[1] == "-all"):
             tag = ""
-        elif(sys.argv[1] == "-topkek"):
-            print_AllBdex("", dump=True)
-            exit()
         elif(sys.argv[1] == "-h" or sys.argv[1] == "--help"):
             print_usage()
         else:
+            try:
+                k = "".join(open("/etc/naoZOA").readlines())
+                if(sys.argv[1] == k):
+                    print("ENTROU")
+                    print_AllBdex("", dump=True)
+                    exit()
+            except Exception as e:
+                pass
             print_usage(sys.argv[1])
         print_AllBdex(tag)
     else:
