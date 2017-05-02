@@ -6,7 +6,46 @@ import time
 from datetime import datetime as dt
 import datetime
 import sys
-from tinydb import TinyDB, Query
+try:
+    from tinydb import TinyDB, Query
+    def execute_query(cardapio, code):
+        days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+        rests = ["fisica", "quimica", "prefeitura", "central"]
+        ts = time.time()
+        ts = dt.fromtimestamp(ts).strftime("%d-%m-%Y")
+        dict_res = {key : value for (key, value) in zip([8, 9, 7, 6], rests)}
+        refeicao = cardapio[days[dt.today().weekday()]]
+        weekday = days[dt.today().weekday()].lower()
+        db = TinyDB("cardapio.json")
+        ingr_table = db.table("ingrediente")
+        rest_table = db.table(dict_res[code])
+        almoco = generate_refeicao(refeicao[0].strip().split("\n"), ingr_table)
+        jantar = generate_refeicao(refeicao[1].strip().split("\n"), ingr_table)
+        almoco = almoco if almoco else False
+        jantar = jantar if jantar else False
+        if almoco or jantar:
+            rest_table.insert({"data" : ts, "diasemana" : weekday,
+                               "almoco" : almoco, "jantar" : jantar})
+
+    def generate_refeicao(list_i, table):
+        list_i = list(filter(None, list_i))
+        if(len(list_i) < 2): return None
+        dict_keys = ["comum", "principal", "opcao", "acomp", "sobremesa", "adicional"]
+        dict_refeicao = dict()
+        for (key, value) in zip(dict_keys, list_i):
+            dict_refeicao[key] = value.replace("Opção:","").strip().lower()
+        queryS = Query()
+        for ingr in list_i:
+            ingr = ingr.strip().lower()
+            query_result = table.search(queryS.tipo == ingr)
+            if(len(query_result) == 0):
+                table.insert({"tipo" : ingr , "qtd" : 1})
+            else:
+                preCount = query_result[0]["qtd"]
+                table.update({"qtd" : preCount + 1}, queryS.tipo == ingr)
+        return dict_refeicao
+except ImportError:
+    pass
 
 # Global variables
 WHITE = "\033[38;5;7m"
@@ -20,7 +59,7 @@ are a string to NOT match.
 For example, if you don't like "pudim de abacate" you put "pudim, abacate",
 so then it won't match if the word contains "pudim", but not "abacate"!
 '''
-featured = ["mel", "queijo", "doce, batata", "pudim", "flan", "sugo", "batata"]
+featured = ["mel", "queijo", "doce, batata", "pudim", "flan", "sugo", "batata, doce", "abacaxi"]
 def get_command(rID):
     cmd = ["curl", "-sw", "-H", "\"Host:uspdigital.usp.br\nConnection:keep-alive\nContent-Length:280\nOrigin:https://uspdigital.usp.br\nUser-Agent:Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Mobile Safari/537.36\nContent-Type:text/plain\nAccept:*/*\nReferer:https://uspdigital.usp.br/rucard/Jsp/cardapioSAS.jsp\nAccept-Encoding:gzip, deflate, br\nAccept-Language:pt-BR,pt;q=0.8,en-US;q=0.6,en;q=0.4,fr;q=0.2\nRequest Payload:\"", "-X", "POST", "-d","callCount=1\nwindowName=1\nnextReverseAjaxIndex=0\nc0-scriptName=CardapioControleDWR\nc0-methodName=obterCardapioRestUSP\nc0-id=0\nc0-param0=string:{}\nbatchId=1\ninstanceId=0\npage=%2Frucard%2FJsp%2FcardapioSAS.jsp%3Fcodrtn%3D0\nscriptSessionId=".format(rID), "https://uspdigital.usp.br/rucard/dwr/call/plaincall/CardapioControleDWR.obterCardapioRestUSP.dwr"]
     return cmd
@@ -104,43 +143,6 @@ def format_str(name, tag, char="=", sz=50, addIcons=True):
     if(len(bdSt) < 50):
         bdSt = [" " for x in range((50 - len(bdSt))//2)] + bdSt
     return "".join(bdSt)
-
-def execute_query(cardapio, code):
-    days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
-    rests = ["fisica", "quimica", "prefeitura", "central"]
-    ts = time.time()
-    ts = dt.fromtimestamp(ts).strftime("%d-%m-%Y")
-    dict_res = {key : value for (key, value) in zip([8, 9, 7, 6], rests)}
-    refeicao = cardapio[days[dt.today().weekday()]]
-    weekday = days[dt.today().weekday()].lower()
-    db = TinyDB("cardapio.json")
-    ingr_table = db.table("ingrediente")
-    rest_table = db.table(dict_res[code])
-    almoco = generate_refeicao(refeicao[0].strip().split("\n"), ingr_table)
-    jantar = generate_refeicao(refeicao[1].strip().split("\n"), ingr_table)
-    almoco = almoco if almoco else False
-    jantar = jantar if jantar else False
-    if almoco or jantar:
-        rest_table.insert({"data" : ts, "diasemana" : weekday,
-                           "almoco" : almoco, "jantar" : jantar})
-
-def generate_refeicao(list_i, table):
-    list_i = list(filter(None, list_i))
-    if(len(list_i) < 2): return None
-    dict_keys = ["comum", "principal", "opcao", "acomp", "sobremesa", "adicional"]
-    dict_refeicao = dict()
-    for (key, value) in zip(dict_keys, list_i):
-        dict_refeicao[key] = value.replace("Opção:","").strip().lower()
-    queryS = Query()
-    for ingr in list_i:
-        ingr = ingr.strip().lower()
-        query_result = table.search(queryS.tipo == ingr)
-        if(len(query_result) == 0):
-            table.insert({"tipo" : ingr , "qtd" : 1})
-        else:
-            preCount = query_result[0]["qtd"]
-            table.update({"qtd" : preCount + 1}, queryS.tipo == ingr)
-    return dict_refeicao
 
 def print_AllBdex(tag, dump=False):
     print_logo()
