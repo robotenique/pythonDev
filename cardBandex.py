@@ -52,6 +52,7 @@ WHITE = "\033[38;5;7m"
 GRAY = "\033[38;5;252m"
 bCodes = {"Física" :8, "Química" :9, "Prefeitura":7, "Central" :6}
 colors  = {8 :"\033[38;5;9m", 9 :"\033[38;5;120m", 7 :"\033[38;5;220m", 6 :"\033[38;5;190m"}
+godlike = True
 '''
 List with featured FOODS! For each item in the list, the first
 item is the featured one, and all the others followed by a ","
@@ -59,7 +60,8 @@ are a string to NOT match.
 For example, if you don't like "pudim de abacate" you put "pudim, abacate",
 so then it won't match if the word contains "pudim", but not "abacate"!
 '''
-featured = ["mel", "queijo", "doce, batata", "pudim", "flan", "sugo", "batata, doce", "abacaxi"]
+featured = ["mel", "queijo", "doce, batata", "pudim", "flan", "sugo",
+            "batata, doce", "abacaxi", "nhoque", "mousse", "chocolate"]
 def get_command(rID):
     cmd = ["curl", "-sw", "-H", "\"Host:uspdigital.usp.br\nConnection:keep-alive\nContent-Length:280\nOrigin:https://uspdigital.usp.br\nUser-Agent:Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Mobile Safari/537.36\nContent-Type:text/plain\nAccept:*/*\nReferer:https://uspdigital.usp.br/rucard/Jsp/cardapioSAS.jsp\nAccept-Encoding:gzip, deflate, br\nAccept-Language:pt-BR,pt;q=0.8,en-US;q=0.6,en;q=0.4,fr;q=0.2\nRequest Payload:\"", "-X", "POST", "-d","callCount=1\nwindowName=1\nnextReverseAjaxIndex=0\nc0-scriptName=CardapioControleDWR\nc0-methodName=obterCardapioRestUSP\nc0-id=0\nc0-param0=string:{}\nbatchId=1\ninstanceId=0\npage=%2Frucard%2FJsp%2FcardapioSAS.jsp%3Fcodrtn%3D0\nscriptSessionId=".format(rID), "https://uspdigital.usp.br/rucard/dwr/call/plaincall/CardapioControleDWR.obterCardapioRestUSP.dwr"]
     return cmd
@@ -101,14 +103,16 @@ def print_refeicao(rf, color):
         for k, idx in zip(tmp, range(len(tmp))):
             print(WHITE+"➤ "+GRAY, end="")
             if idx == 1 or idx == 5 or idx == 3:
-                print(uLine(app_h(k)))
+                temp = app_h(k) if godlike else k
+                print(uLine(temp))
             else: print(k)
     else:
         print(rf)
 
-def print_day(cardapio, tag, color, code=None):
+def print_day(cardapio, tag, color, code=None, day=""):
     days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
-    refeicao = cardapio[days[datetime.datetime.today().weekday()]]
+    d_Index = datetime.datetime.today().weekday() if not day else day - 1
+    refeicao = cardapio[days[d_Index]]
     if tag != "":
         tag = 0 if tag == " (Almoço)" else 1
         print_refeicao(refeicao[tag], GRAY)
@@ -144,15 +148,18 @@ def format_str(name, tag, char="=", sz=50, addIcons=True):
         bdSt = [" " for x in range((50 - len(bdSt))//2)] + bdSt
     return "".join(bdSt)
 
-def print_AllBdex(tag, dump=False):
-    print_logo()
+def print_AllBdex(tag, dump=False, day="", logo=True):
+    days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+    if logo: print_logo()
+    if day:
+        print("\n\n"+format_str(days[day-1],"",char="~", sz=30))
     for name, code in bCodes.items():
         print("\n"+colors[code]+format_str(name, tag)+GRAY)
         cdp = get_command(str(code))
         cdp = parse_cardapio(sb.check_output(cdp))
         cdp = create_cardapio(cdp)
         if(not dump):
-            print_day(cdp, tag, GRAY, code=code)
+            print_day(cdp, tag, GRAY, code=code, day=day)
         else:
             execute_query(cdp, code)
 
@@ -178,8 +185,10 @@ def print_usage(wrong_arg=None):
           "rantes, com as refeições de acordo com o horário de execução do script;\n"+
           flagF("FLAGS:")+"\n\t"+flagF("-a")+" : Imprime apenas os almoços;"+"\n\t"+
           flagF("-j")+" : Imprime apenas os jantares;"+"\n\t"+flagF("-all")+" : Imprime"
-          " todas as refeições do dia;""\n\t"+flagF("-h ou --help")+" : Imprime esta"
-          "página de informação.\n")
+          " todas as refeições do dia;"+"\n\t"+flagF("-d número")+" : Imprime"
+          " todas as refeições do dia escolhido (segunda = 1, terça = 2, etc);"+
+          "\n\t"+flagF("-E ou --EVERYTHING")+" : Imprime todas as refeições da semana! D: ;"+"\n\t"
+          +flagF("-h ou --help")+" : Imprime esta página de informação.\n")
     exit()
 
 def main():
@@ -195,6 +204,10 @@ def main():
             tag = " (Jantar)"
         elif(sys.argv[1] == "-all"):
             tag = ""
+        elif(sys.argv[1] == "--EVERYTHING" or sys.argv[1] == "-E"):
+            for i in range(1, 8):
+                print_AllBdex("", day=i, logo = False)
+            exit()
         elif(sys.argv[1] == "-h" or sys.argv[1] == "--help"):
             print_usage()
         else:
@@ -208,6 +221,13 @@ def main():
                 pass
             print_usage(sys.argv[1])
         print_AllBdex(tag)
+    elif(len(sys.argv) == 3 and sys.argv[1] == "-d"):
+        try:
+            day_choosen = int(sys.argv[2])
+            if day_choosen in range(1,8):
+                print_AllBdex("", day=day_choosen)
+        except (TypeError, ValueError):
+            print_usage()
     else:
         print_usage()
 
