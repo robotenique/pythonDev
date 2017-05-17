@@ -36,8 +36,8 @@ class Movement:
         -------
         Generator of movement steps which in turns yield the x and y coords.
         """
-        self.x = kwargs['x']
-        self.y = kwargs['y']
+        self.x = kwargs['x0']
+        self.y = kwargs['y0']
         def genF():
             acX = kwargs['acX']
             acY = kwargs['acY']
@@ -49,6 +49,9 @@ class Movement:
             y = kwargs['y']
             vy = kwargs['vy']
             y0 = kwargs['y0']
+            self.kwargs['ax'] = 0 if not kwargs.get('ax') else kwargs['ax']
+            self.kwargs['ay'] = 0 if not kwargs.get('ay') else kwargs['ay']
+
 
             deltaT = kwargs['deltaT']
             k = kwargs['k']
@@ -59,8 +62,10 @@ class Movement:
                 if acY:
                     vy -= k*y*deltaT
                     y += vy*deltaT
-                self.x = x
-                self.y = y
+                self.kwargs['vx'] = vx
+                self.kwargs['vy'] = vy
+                self.x = x + x0
+                self.y = y + y0
                 yield x + x0, y + y0
         return genF
 
@@ -86,20 +91,26 @@ class Movement:
                 y += vy*deltaT
                 self.x = x
                 self.y = y
+                self.kwargs['vx'] = vx
+                self.kwargs['vy'] = vy
                 yield x, y
         return genF
 
     def startPos(self):
         return self.x, self.y
 
-    def reverseVelocity(self, x=True, y=True):
-        supportedMovs = ('MRU', 'MRUV')
+    def reverse(self, x=False, y=False, ax=False, ay=False):
+        supportedMovs = ('MRU', 'MRUV', 'SHO')
         if self.movType not in supportedMovs:
             raise NotImplementedError("You can't reverse this velocity!")
         if x:
             self.kwargs['vx'] = -self.kwargs['vx']
         if y:
             self.kwargs['vy'] = -self.kwargs['vy']
+        if ax and self.movType != 'SHO':
+            self.kwargs['ax'] = -self.kwargs['ax']
+        if ay and self.movType != 'SHO':
+            self.kwargs['ay'] = -self.kwargs['ay']
         self.kwargs['x'] = self.x
         self.kwargs['y'] = self.y
         return self.createMRUV(**self.kwargs)()
@@ -107,10 +118,10 @@ class Movement:
 class BallAnimation(pyglet.window.Window):
     def __init__(self, texture=None, movs=None, *args, **kwargs):
         super(BallAnimation, self).__init__(*args, **kwargs)
+        self.width = kwargs['width']
+        self.height = kwargs['height']
         self.batch = pyglet.graphics.Batch()
         self.spriteList = []
-        self.width = 1366
-        self.height = 768
         for t, mov in zip(texture, movs):
             img = pyglet.resource.image(t)
             self.createDrawableObjects(img, mov)
@@ -125,8 +136,7 @@ class BallAnimation(pyglet.window.Window):
         self.spriteList.append([sprite, False, mov.movGenerator(), mov])
 
     def adjustWindowSize(self):
-        self.width = 1366
-        self.height = 768
+        pass
         '''w = self.sprite.width * 3
         h = self.sprite.height * 3
         self.width = w
@@ -136,33 +146,46 @@ class BallAnimation(pyglet.window.Window):
         for spriteItem in self.spriteList:
             sprite = spriteItem[0]
             step = spriteItem[2]
-            sprite.x, sprite.y = next(step)
-            sprite.rotation += 5
             self.checkBoundaries(spriteItem)
+            sprite.x, sprite.y = next(spriteItem[2])
+            sprite.rotation += 5
 
     def checkBoundaries(self, spriteItem):
-        # TODO : Encapsulates the collision verification right here
         sprite = spriteItem[0]
         mov = spriteItem[3]
-        if sprite.x > self.width or sprite.x < 0:
-            sprite.x = 100 if sprite.x < 0 else self.width - 100
-            spriteItem[2]  = mov.reverseVelocity(y=False)
-        if sprite.y > self.height or sprite.y < 0:
-            sprite.y = 100 if sprite.y < 0 else self.height - 100
-            spriteItem[2] = mov.reverseVelocity(x=False)
+        revX, revY = True, True
+        if sprite.x > self.width - sprite.width/2:
+            sprite.x = self.width - sprite.width/2
+        elif sprite.x < sprite.width/2:
+            sprite.x = sprite.width/2
+        else:
+            revX = False
+        if revX:
+            mov.x = sprite.x
+            spriteItem[2]  = mov.reverse(x=True, ax=True)
 
+        if sprite.y > self.height - sprite.height/2:
+            sprite.y = self.height - sprite.height/2
+        elif sprite.y < sprite.height/2:
+            sprite.y = sprite.height/2
+        else:
+            revY = False
+        if revY:
+            mov.y = sprite.y
+            spriteItem[2] = mov.reverse(y=True, ay=True)
 
     def on_draw(self):
         self.clear()
         self.batch.draw()
 
+
 def main():
     deltaT = 1/60
     txt = ['redBall.png','greenBall.png', 'purpleBall.png']
-    movs = [Movement(x=200, y=500, vx=800, vy=400, deltaT=deltaT),
-            Movement(movType='SHO', x=100, y=200, vx=0, vy=0,
+    movs = [Movement(x=200, y=500, vx=992, vy=220, deltaT=deltaT),
+            Movement(movType='SHO', x=100, y=200, vx=0, vy=20,
                      acX=True, acY=True, x0=683, y0=500, deltaT=deltaT, k=10),
-            Movement(movType='MRUV', x=200,vx=10,ax=200,y=500,vy=300,ay=-9.8,deltaT=deltaT)]
+            Movement(movType='MRUV', x=200,vx=10,ax=200,y=200,vy=0,ay=-200 ,deltaT=deltaT)]
 
     '''
     # Creating a movement, running it 10 times, then reversing it
