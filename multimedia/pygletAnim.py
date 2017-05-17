@@ -11,22 +11,43 @@ class Movement:
             self.movGenerator = self.createMRU(**kwargs)
         elif(movType == 'SHO'):
             self.movGenerator = self.createSHO(**kwargs)
+        elif(movType == 'MRUV'):
+            self.movGenerator = self.createMRUV(**kwargs)
         else:
             raise NotImplementedError("This movement isn't implemented!")
 
-
     def createSHO(self, **kwargs):
+        """
+        Creates a SHO movement with the given parameters and returns a
+        generator of the movement.
+
+        Parameters
+        ----------
+        acX, acY: boolean
+            Describes whether to apply the SHO movement to x or y coordinates
+        x0, y0: int (pixel unit)
+            The equilibrium state position of both x and y coordinates
+        x, y : int (pixel units)
+            The initial distortion of the oscillator from the equilibrium state
+        vx, vy : float
+            The initial velocity of the x and y coordinates
+
+        Returns
+        -------
+        Generator of movement steps which in turns yield the x and y coords.
+        """
         self.x = kwargs['x']
         self.y = kwargs['y']
         def genF():
+            acX = kwargs['acX']
+            acY = kwargs['acY']
+
             x = kwargs['x']
             vx = kwargs['vx']
-            acX = kwargs['acX']
             x0 = kwargs['x0']
 
             y = kwargs['y']
             vy = kwargs['vy']
-            acY = kwargs['acY']
             y0 = kwargs['y0']
 
             deltaT = kwargs['deltaT']
@@ -40,19 +61,27 @@ class Movement:
                     y += vy*deltaT
                 self.x = x
                 self.y = y
-                yield x + x0, y
+                yield x + x0, y + y0
         return genF
 
     def createMRU(self, **kwargs):
+        self.kwargs['ax'], self.kwargs['ay'] = 0, 0
+        return self.createMRUV(**self.kwargs)
+
+    def createMRUV(self, **kwargs):
         self.x = kwargs['x']
         self.y = kwargs['y']
         def genF():
             x = kwargs['x']
-            y = kwargs['y']
             vx = kwargs['vx']
+            ax = kwargs['ax']
+            y = kwargs['y']
             vy = kwargs['vy']
+            ay = kwargs['ay']
             deltaT = kwargs['deltaT']
             for c in itools.count():
+                vx += ax*deltaT
+                vy += ay*deltaT
                 x += vx*deltaT
                 y += vy*deltaT
                 self.x = x
@@ -63,14 +92,17 @@ class Movement:
     def startPos(self):
         return self.x, self.y
 
-    def reverseVelocity(self):
-        if self.movType != 'MRU':
+    def reverseVelocity(self, x=True, y=True):
+        supportedMovs = ('MRU', 'MRUV')
+        if self.movType not in supportedMovs:
             raise NotImplementedError("You can't reverse this velocity!")
-        self.kwargs['vx'] = -self.kwargs['vx']
-        self.kwargs['vy'] = -self.kwargs['vy']
+        if x:
+            self.kwargs['vx'] = -self.kwargs['vx']
+        if y:
+            self.kwargs['vy'] = -self.kwargs['vy']
         self.kwargs['x'] = self.x
         self.kwargs['y'] = self.y
-        return self.createMRU(**self.kwargs)()
+        return self.createMRUV(**self.kwargs)()
 
 class BallAnimation(pyglet.window.Window):
     def __init__(self, texture=None, movs=None, *args, **kwargs):
@@ -88,11 +120,9 @@ class BallAnimation(pyglet.window.Window):
         image.anchor_x = image.width/2
         image.anchor_y = image.height/2
         sprite = pyglet.sprite.Sprite(image, batch=self.batch)
-        sprite.position = (
-            rnd.randint(int(sprite.width/2), self.width),
-            rnd.randint(int(sprite.height/2), self.height))
+        spx, spy = mov.startPos()
+        sprite.position = (spx, spy)
         self.spriteList.append([sprite, False, mov.movGenerator(), mov])
-
 
     def adjustWindowSize(self):
         self.width = 1366
@@ -102,21 +132,24 @@ class BallAnimation(pyglet.window.Window):
         self.width = w
         self.height = h'''
 
-
     def moveObjects(self, t):
         for spriteItem in self.spriteList:
             sprite = spriteItem[0]
             step = spriteItem[2]
             sprite.x, sprite.y = next(step)
+            sprite.rotation += 5
             self.checkBoundaries(spriteItem)
 
     def checkBoundaries(self, spriteItem):
-        return 1
         # TODO : Encapsulates the collision verification right here
         sprite = spriteItem[0]
+        mov = spriteItem[3]
         if sprite.x > self.width or sprite.x < 0:
-            sprite.x = sprite.x + 100 if sprite.x < 0 else sprite.x - 100
-            spriteItem[2]  = spriteItem[3].reverseVelocity()
+            sprite.x = 100 if sprite.x < 0 else self.width - 100
+            spriteItem[2]  = mov.reverseVelocity(y=False)
+        if sprite.y > self.height or sprite.y < 0:
+            sprite.y = 100 if sprite.y < 0 else self.height - 100
+            spriteItem[2] = mov.reverseVelocity(x=False)
 
 
     def on_draw(self):
@@ -125,10 +158,11 @@ class BallAnimation(pyglet.window.Window):
 
 def main():
     deltaT = 1/60
-    txt = ['redBall.png','greenBall.png']
-    movs = [Movement(x=200, y=500, vx=500, vy=0, deltaT=deltaT),
-            Movement(movType='SHO', x=10, y=500, vx=220, vy=110,
-                     acX=True, acY=False, x0=683, y0=500, deltaT=deltaT, k=1)]
+    txt = ['redBall.png','greenBall.png', 'purpleBall.png']
+    movs = [Movement(x=200, y=500, vx=800, vy=400, deltaT=deltaT),
+            Movement(movType='SHO', x=100, y=200, vx=0, vy=0,
+                     acX=True, acY=True, x0=683, y0=500, deltaT=deltaT, k=10),
+            Movement(movType='MRUV', x=200,vx=10,ax=200,y=500,vy=300,ay=-9.8,deltaT=deltaT)]
 
     '''
     # Creating a movement, running it 10 times, then reversing it
