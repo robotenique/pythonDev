@@ -4,58 +4,6 @@ import random as rnd
 import itertools as itools
 from abc import ABC, abstractmethod
 
-class Particle(ABC):
-    UNIT_CONV = None
-    @abstractmethod
-    def step(self):
-        pass
-
-    @abstractmethod
-    def check_collision(self):
-        pass
-
-    @abstractmethod
-    def build_movement(self):
-        pass
-
-    def set_pos(self, x, y):
-        if not Particle.UNIT_CONV:
-            raise AttributeError("You must set a base unit conversion!")
-        self.x = x
-        self.y = y
-
-
-
-class BallMRUV(Particle):
-    def __init__(self, **kwargs):
-        super(Particle, set_pos(kwargs['x'], kwargs['y']))
-        self.build_movement(**kwargs)
-
-    def step(self):
-        dt = self.deltaT
-        self.vx += self.ax*dt
-        self.vy += self.ay*dt
-        self.x  += self.vx*dt
-        self.y  += self.vy*delta
-
-    def check_collision(self):
-        pass
-
-    def build_movement(**kwargs):
-        convert = lambda i : i*super(self.__class__).UNIT_CONV
-        self.vx = convert(kwargs['vx'])
-        self.vy = convert(kwargs['vy'])
-        self.ax = convert(kwargs['ax'])
-        self.ay = convert(kwargs['ay'])
-        self.deltaT = kwargs['deltaT']
-
-
-
-
-
-
-
-
 class Movement:
     def __init__(self, movType='MRU', **kwargs):
         self.kwargs = kwargs
@@ -234,8 +182,7 @@ class BallAnimation(pyglet.window.Window):
 
 def main():
     deltaT = 1/60
-    txt = ['redBall.png','greenBall.png', 'purpleBall.png']
-    redBall = BallMRUV(x=200, y=500, vx=10, vy=20, deltaT=deltaT)
+    txt = ['redBall.png','greenBall.png', 'purpleBall.png']    
     movs = [Movement(x=200, y=500, vx=992, vy=220, deltaT=deltaT),
             Movement(movType='SHO', x=100, y=200, vx=0, vy=20,
                      acX=True, acY=True, x0=683, y0=500, deltaT=deltaT, k=10),
