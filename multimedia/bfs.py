@@ -57,8 +57,9 @@ while running:
     if len(nodeQueue) > 0:
         p = nodeQueue[0]
         del nodeQueue[0]
-        if  n//2**p.depth == n//2**(p.depth+1):
+        if  n//2**p.depth == n//2**(p.depth+1) or n//2**p.depth < 5:
             displayWindow()
+            exit()
         p.move()
         while not p.isOld() and not isBorder(p.x, p.y):
             p.move()

@@ -2,7 +2,7 @@ import pygame
 import random
 import math
 import time
-(width, height) = (700, 700)
+(width, height) = (400, 400)
 pygame.display.set_caption('Random path')
 screen = pygame.display.set_mode((width, height))
 
