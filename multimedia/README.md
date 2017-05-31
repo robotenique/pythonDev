@@ -31,6 +31,7 @@ Here's an overview of each file (I'll try to keep this updated..):
 - *genTxt.py*
 
     Given a image (preferably simple), it prints out the list of (i, j) positions to "recreate" the image. You can see images generated with this type of approach at the "*imgDemo*" folder inside this directory. This application it's very useful in [this kind of program](https://github.com/robotenique/intermediateProgramming/tree/master/MAC0323/EP5);
+    
     ![bfs](imgDemo/genTxt.png)
 
 - *gifGen.py*
