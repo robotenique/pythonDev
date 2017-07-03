@@ -16,7 +16,7 @@ try:
         dict_res = {key : value for (key, value) in zip([8, 9, 7, 6], rests)}
         refeicao = cardapio[days[dt.today().weekday()]]
         weekday = days[dt.today().weekday()].lower()
-        db = TinyDB("cardapio.json")
+        db = TinyDB("/root/cardapio.json")
         ingr_table = db.table("ingrediente")
         rest_table = db.table(dict_res[code])
         almoco = generate_refeicao(refeicao[0].strip().split("\n"), ingr_table)
@@ -30,7 +30,7 @@ try:
     def generate_refeicao(list_i, table):
         list_i = list(filter(None, list_i))
         if(len(list_i) < 2): return None
-        dict_keys = ["comum", "principal", "opcao", "acomp", "sobremesa", "adicional"]
+        dict_keys = ["comum", "principal", "opcao", "acomp", "adicional", "sobremesa"]
         dict_refeicao = dict()
         for (key, value) in zip(dict_keys, list_i):
             dict_refeicao[key] = value.replace("Opção:","").strip().lower()
@@ -62,8 +62,8 @@ so then it won't match if the word contains "pudim", but not "abacate"!
 '''
 featured = ["mel", "queijo", "doce, batata", "pudim", "flan", "sugo, berinjela",
             "batata, doce", "abacaxi", "nhoque", "mousse", "chocolate", "estrogonofe",
-            "brigadeiro", "milanesa", "pizzaiolo", "fantasia", "mandioca","sorvete", "fricassé", "almôndegas",
-            "madeira", "vinho"]
+	    "brigadeiro", "milanesa", "pizzaiolo", "fantasia", "mandioca","sorvete", "fricassé", "almôndegas",
+	    "madeira", "escondidinho", "cocada", "bolonhesa", "lasanha"]
 def get_command(rID):
     cmd = ["curl", "-sw", "-H", "\"Host:uspdigital.usp.br\nConnection:keep-alive\nContent-Length:280\nOrigin:https://uspdigital.usp.br\nUser-Agent:Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Mobile Safari/537.36\nContent-Type:text/plain\nAccept:*/*\nReferer:https://uspdigital.usp.br/rucard/Jsp/cardapioSAS.jsp\nAccept-Encoding:gzip, deflate, br\nAccept-Language:pt-BR,pt;q=0.8,en-US;q=0.6,en;q=0.4,fr;q=0.2\nRequest Payload:\"", "-X", "POST", "-d","callCount=1\nwindowName=1\nnextReverseAjaxIndex=0\nc0-scriptName=CardapioControleDWR\nc0-methodName=obterCardapioRestUSP\nc0-id=0\nc0-param0=string:{}\nbatchId=1\ninstanceId=0\npage=%2Frucard%2FJsp%2FcardapioSAS.jsp%3Fcodrtn%3D0\nscriptSessionId=".format(rID), "https://uspdigital.usp.br/rucard/dwr/call/plaincall/CardapioControleDWR.obterCardapioRestUSP.dwr"]
     return cmd
@@ -214,13 +214,15 @@ def main():
             print_usage()
         else:
             try:
-                k = "".join(open("/etc/naoZOA").readlines())
+                k = sb.check_output(["cat", "/root/naoZOA"])
+                k = k.decode("utf-8")
+                k = k.replace("\n","")
+                print("K=|",k,"|",sep="")
                 if(sys.argv[1] == k):
-                    print("ENTROU")
-                    print_AllBdex("", dump=True)
-                    exit()
+                     print_AllBdex("", dump=True)
+                exit()
             except Exception as e:
-                pass
+                print(e)
             print_usage(sys.argv[1])
         print_AllBdex(tag)
     elif(len(sys.argv) == 3 and sys.argv[1] == "-d"):
@@ -236,3 +238,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
