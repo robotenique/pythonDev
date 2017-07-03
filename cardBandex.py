@@ -90,34 +90,43 @@ def create_cardapio(r):
     cardapio = {dia: refeicao for dia, refeicao in zip(days, r)}
     return cardapio
 
-def app_h(k):
+def app_h(k, isMarkd):
     for f in featured:
         f = [x.strip().lower() for x in f.split(",")]
         if f[0] in k.lower().split(" "):
             if(len(list((x for x in f[1:] if x in k.lower()))) == 0):
-                return "\033[4m\033[38;5;165m*"+k.strip()+"*\033[0m"
+                if not isMarkd:
+                    return "\033[4m\033[38;5;165m*"+k.strip()+"*\033[0m"
+                else:
+                    return "`"+k.strip()+"`"
     return k
 
-def print_refeicao(rf, color):
+def print_refeicao(rf, color, isMarkd=False):
     uLine = lambda x: "\033[38;5;14m"+x+"\033[0m"+color
     tmp = list(filter(None, rf.split("\n")))
     if(len(tmp) > 2):
         for k, idx in zip(tmp, range(len(tmp))):
-            print(WHITE+"➤ "+GRAY, end="")
-            if idx == 1 or idx == 5 or idx == 3:
-                temp = app_h(k) if godlike else k
-                print(uLine(temp))
+            if not isMarkd:
+                print(WHITE+"➤ "+GRAY, end="")
+            else:
+                print("➤ ", end="")
+            if idx == 1 or idx == 3 or idx == 5:
+                temp = app_h(k, isMarkd) if godlike else k
+                if not isMarkd:
+                    print(uLine(temp))
+                else:
+                    print((lambda x : "*"+x+"*" if x[0] != "`" else x)(temp))
             else: print(k)
     else:
         print(rf)
 
-def print_day(cardapio, tag, color, code=None, day=""):
+def print_day(cardapio, tag, color, code=None, day="", isMarkd=False):
     days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
     d_Index = datetime.datetime.today().weekday() if not day else day - 1
     refeicao = cardapio[days[d_Index]]
     if tag != "":
         tag = 0 if tag == " (Almoço)" else 1
-        print_refeicao(refeicao[tag], GRAY)
+        print_refeicao(refeicao[tag], GRAY, isMarkd=isMarkd)
     else:
         for i, title in zip(refeicao,["Almoço", "Jantar"]):
             print(colors[code]+format_str(title,"",char="-", sz=20)+color)
@@ -150,17 +159,30 @@ def format_str(name, tag, char="=", sz=50, addIcons=True):
         bdSt = [" " for x in range((50 - len(bdSt))//2)] + bdSt
     return "".join(bdSt)
 
-def print_AllBdex(tag, dump=False, day="", logo=True):
+def markdown_formatter(tag, day):
+    for name, code in bCodes.items():
+        print("\n*"+format_str(name, tag)+"*")
+        cdp = get_command(str(code))
+        cdp = parse_cardapio(sb.check_output(cdp))
+        cdp = create_cardapio(cdp)
+        print_day(cdp, tag, GRAY, code=code, day=day, isMarkd=True)
+
+
+
+def print_AllBdex(tag, dump=False, day="", logo=True, mkdump=False):
     days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
     if logo: print_logo()
     if day:
         print("\n\n"+format_str(days[day-1],"",char="~", sz=30))
+    if mkdump:
+        markdown_formatter(tag, day)
+        return
     for name, code in bCodes.items():
         print("\n"+colors[code]+format_str(name, tag)+GRAY)
         cdp = get_command(str(code))
         cdp = parse_cardapio(sb.check_output(cdp))
         cdp = create_cardapio(cdp)
-        if(not dump):
+        if not dump:
             print_day(cdp, tag, GRAY, code=code, day=day)
         else:
             execute_query(cdp, code)
@@ -189,13 +211,11 @@ def print_usage(wrong_arg=None):
           flagF("-j")+" : Imprime apenas os jantares;"+"\n\t"+flagF("-all")+" : Imprime"
           " todas as refeições do dia;"+"\n\t"+flagF("-d número")+" : Imprime"
           " todas as refeições do dia escolhido (segunda = 1, terça = 2, etc);"+
-          "\n\t"+flagF("-E ou --EVERYTHING")+" : Imprime todas as refeições da semana! D: ;"+"\n\t"
+          "\n\t"+flagF("-E ou -EVERYTHING")+" : Imprime todas as refeições da semana! D: ;"+"\n\t"
           +flagF("-h ou --help")+" : Imprime esta página de informação.\n")
     exit()
 
 def main():
-    #print(sb.check_output(["whoami"]))
-
     if(len(sys.argv) == 1):
         tag = get_TimeTag()
         print_AllBdex(tag)
@@ -206,9 +226,13 @@ def main():
             tag = " (Jantar)"
         elif(sys.argv[1] == "-all"):
             tag = ""
-        elif(sys.argv[1] == "--EVERYTHING" or sys.argv[1] == "-E"):
+        elif(sys.argv[1] == "-EVERYTHING" or sys.argv[1] == "-E"):
             for i in range(1, 8):
                 print_AllBdex("", day=i, logo = False)
+            exit()
+        elif(sys.argv[1] == "-markdown"):
+            tag = get_TimeTag()
+            print_AllBdex(tag, logo=False, mkdump=True)
             exit()
         elif(sys.argv[1] == "-h" or sys.argv[1] == "--help"):
             print_usage()
@@ -238,4 +262,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
