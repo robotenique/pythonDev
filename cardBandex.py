@@ -167,8 +167,6 @@ def markdown_formatter(tag, day):
         cdp = create_cardapio(cdp)
         print_day(cdp, tag, GRAY, code=code, day=day, isMarkd=True)
 
-
-
 def print_AllBdex(tag, dump=False, day="", logo=True, mkdump=False):
     days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
     if logo: print_logo()
@@ -231,8 +229,9 @@ def main():
                 print_AllBdex("", day=i, logo = False)
             exit()
         elif(sys.argv[1] == "-markdown"):
-            tag = get_TimeTag()
-            print_AllBdex(tag, logo=False, mkdump=True)
+            print_AllBdex(" (Almoço)", logo=False, mkdump=True)
+            print("%") # A delimiter to break the line when processing the output
+            print_AllBdex(" (Jantar)", logo=False, mkdump=True)
             exit()
         elif(sys.argv[1] == "-h" or sys.argv[1] == "--help"):
             print_usage()
