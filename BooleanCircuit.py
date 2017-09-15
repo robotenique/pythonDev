@@ -1,4 +1,4 @@
-# Implements Polymorphism and Inheritance in O.O.
+# Implements Polymorphism and Inheritance in OOP
 class LogicGate:
     """docstring for LogicGate
         Implements a logic gate superclass.

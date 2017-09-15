@@ -1,4 +1,4 @@
-# Python_data/Multimedia
+# pythonDev/Multimedia
 
 Python folder with tests and very simple applications related to graphics, images, games and multimedia in general!
 Here's an overview of each file (I'll try to keep this updated..):
