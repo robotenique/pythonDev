@@ -12,4 +12,4 @@ def timer_function(func_args, name="Current function", niter = 30):
     print(f"{t} seconds ({name} , n_iter = {niter})")
 
 def timer_wrap(func, args, niter):
-    t = timer_function(wrapper(func, args), name=func.__name__, niter=niter)
+    t = timer_function(wrapper(func, *args), name=func.__name__, niter=niter)

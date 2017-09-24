@@ -5,11 +5,11 @@ from dp_timer import timer_wrap
 def main():
     N_ITER = 30
     FIB_ARG = 60
-    timer_wrap(memo_fib,  (FIB_ARG), N_ITER)
-    timer_wrap(lru_fib,   (FIB_ARG), N_ITER)
-    timer_wrap(iter_fib,  (FIB_ARG), N_ITER)
-    timer_wrap(gen_fib,   (FIB_ARG), N_ITER)
-    timer_wrap(naive_fib, (FIB_ARG), N_ITER)
+    timer_wrap(memo_fib,  (FIB_ARG,), N_ITER)
+    timer_wrap(lru_fib,   (FIB_ARG,), N_ITER)
+    timer_wrap(iter_fib,  (FIB_ARG,), N_ITER)
+    timer_wrap(gen_fib,   (FIB_ARG,), N_ITER)
+    timer_wrap(naive_fib, (FIB_ARG,), N_ITER)
 
 
 # Naive Fibonacci impl
