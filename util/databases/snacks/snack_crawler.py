@@ -2,11 +2,15 @@ import requests as Req
 import re
 from bs4 import BeautifulSoup
 import random as rnd
+import time
 from typing import List
 
 
 MAIN_LINK = "https://www.taquitos.net"
-HEADER ={'User-Agent': 'Mozilla/5.0'}
+HEADER = {'User-Agent': 'Mozilla/5.0'}
+DELAY = 5 # Delay the scrapping so we don't get blocked
+
+
 class Snack(object):
     def __init__(self, title):
         self.title = title;
@@ -20,6 +24,14 @@ class Snack(object):
         return snack_str
 
 def create_snack_from_url(url:str, country:str=None, category:str=None):
+    '''
+    Given an _INDIVIDUAL_ snack URL, obtain the info from said snack
+    and create a new Snack object representing the newly scrapped snack,
+    returning the individual Snack object.
+
+    It's the most deeper depth method in the scrapping routine
+    '''
+    time.sleep(DELAY)
     soup = BeautifulSoup(Req.get(url, headers=HEADER).content, 'html.parser', headers=HEADER)
     snack_review = soup.find_all(id="reviewtop")
     assert len(snack_review) == 1, "Wrong number of elements in reviewtop div"
@@ -43,11 +55,13 @@ def create_snack_from_url(url:str, country:str=None, category:str=None):
         new_snack.country = country
     if category:
         new_snack.category = category
+    # Truncate the title
     trunc = s_title[:30]+"(...)" if len(s_title) > 33 else s_title
     print(f"\tCreated {trunc}")
     return new_snack
 
 def scrap_snack_list(url:str, country:str=None) -> List:
+    time.sleep(DELAY)
     soup = BeautifulSoup(Req.get(url,headers=HEADER).content, 'html.parser')
     snacks_from_list = []
     list_element = []
@@ -67,9 +81,10 @@ def scrap_snack_list(url:str, country:str=None) -> List:
 
 def scrap_per_country() -> List:
     country_link = "https://www.taquitos.net/snacks-by-country/"
+    time.sleep(DELAY)
     soup = BeautifulSoup(Req.get(country_link, headers=HEADER).content, 'html.parser')
     all_snacks = []
-    print(soup)
+    print(soup)    
     for el in soup.find('div', class_='triple').find_all('li'):
         text = el.get_text()
         link = el.find('a')
