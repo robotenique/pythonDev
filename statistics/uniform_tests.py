@@ -60,7 +60,7 @@ def main():
     my_vals = []
     for bckt in gen_buckets(num_buckets_init, data):
         my_vals.append(np.around(chisquare(bckt).pvalue, decimals=5))
-
+    # If the pvalues have a 'uniform' distribution over [0, 1], we don't negate the null hypothesis
     plt.hist(my_vals)
     plt.show()
 
@@ -78,6 +78,7 @@ def main():
     for bckt in gen_buckets(num_buckets_hweight, data_hamming, max_val=9):
         #plt.plot(bckt) # You can see that the data is a gaussian / binomial distribution
         my_vals.append(np.around(chisquare(bckt).pvalue, decimals=5))
+    # If the pvalues are very close to zero, we don't accept the null hypothesis => High probability of NOT being a uniform distribution
     plt.hist(my_vals)
     plt.show()
 
