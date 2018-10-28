@@ -1,7 +1,6 @@
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 import numpy as np
-import matplotlib.pyplot as plt
 
 def main():
     # Don't print using scientific notation
@@ -19,7 +18,7 @@ def main():
     X, Y = vec[:, :len(vec[0]) - 1], vec[:, len(vec[0]) - 1]
     #print(f"l1 = {l1}\nF = {F}\nN={N}\nvec={vec}\ninstances2predict={instances2predict}\nto_predict={to_predict}")
 
-    # Preprocessing
+    # Preprocessing: I know that the data is already normalized & mapped to (0, 1), so no need to do that
     # Polynomial features: Generate a polynomial feature of degree 3, and transform X
     pol3 = PolynomialFeatures(3)
     X_transf = pol3.fit_transform(X)
