@@ -1,10 +1,13 @@
-import requests as Req
+import os
 import re
-from bs4 import BeautifulSoup
-import random as rnd
 import time
+import string
+from urllib.request import urlretrieve
+import random as rnd
+import requests as Req
 from typing import List
-from proxy_manager import ProxyManager
+from bs4 import BeautifulSoup
+#from proxy_manager import ProxyManager
 
 
 MAIN_LINK = "https://www.taquitos.net"
@@ -77,18 +80,23 @@ def create_snack_from_url(url:str, country:str=None, category:str=None):
     s_title = soup.find('title').get_text()
     s_company = None;
     s_description = None;
+    printable = set(string.printable) # valid chars for a filename
+    img_links = []
+    extra_info = "" # String to store extra information to print later
     try:
+        # Extract textual information
         for el in snack_review.find_all("p", class_="detail"):
-            # TODO: We could also get the review text and images from here!
             # Indicates what that paragraph contains
             first_bold = el.find_all('b')[0].get_text()
             if 'Company' in first_bold:
                  s_company = el.find_all('a')[0].get_text()
-            for bold_element in el.find_all('b'):
-                if "From the package" in bold_element.get_text():
-                    children = list(bold_element.children)
-                    if len(children) > 1:
-                        s_description = children[1].strip()
+            if "From the package" in el.get_text():
+                children = list(el.children)
+                if len(children) > 1:
+                    s_description = children[1].strip()
+        # Extract all image links from the review
+        for img in snack_review.find_all("img", class_ = "reviewpictall"):
+            img_links.append(MAIN_LINK+img.get("src"))
     except:
         print("Error while getting snack review content")
 
@@ -101,9 +109,21 @@ def create_snack_from_url(url:str, country:str=None, category:str=None):
         new_snack.category = category
     if s_description:
         new_snack.description = s_description
+    if img_links:
+        foldername = new_snack.title.strip().replace(" ","_").lower()
+        new_snack.folder_name = "".join(list(filter(lambda x: x in printable, foldername)))
+        assert new_snack.folder_name != None
+        if not os.path.exists("image/"):
+            os.makedirs("image/")
+        os.makedirs("image/"+new_snack.folder_name)
+        for link in img_links:
+            img_name = link.split('/')[-1]
+            urlretrieve(link, "image/"+new_snack.folder_name+f"/{img_name}")
+            extra_info += f"\t\tsaved image: {img_name}\n"
     # Truncate the title
     trunc = s_title[:30]+"(...)" if len(s_title) > 33 else s_title
     print(f"\tCreated {trunc}")
+    print(extra_info)
     return new_snack
 
 def scrap_snack_list(url:str, country:str=None) -> List:
@@ -141,8 +161,8 @@ def scrap_per_country() -> List:
     update_global_proxy(proxy) """
     soup = BeautifulSoup(Req.get(country_link, headers=HEADER).content, 'html.parser')
     all_snacks = []
-    print(soup)
-    # TODO: Change qtd of countries to get from
+    #print(soup)
+    # TODO: You can change the quantity of countries to scrap in the line below, by changing the array
     for el in soup.find('div', class_='triple').find_all('li')[:1]:
         # Get a proxy
         """ print("Getting new proxy...")
