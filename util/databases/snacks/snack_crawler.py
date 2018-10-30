@@ -211,6 +211,7 @@ def main():
     data = json.dumps(list(map(lambda obj: obj.__dict__, snack_list)))
     with open('snacks.json', 'w') as outfile:
     	json.dump(data, outfile)
+    print("------ FINISHED --------")
 
 if __name__ == '__main__':
     main()
