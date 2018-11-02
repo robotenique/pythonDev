@@ -16,16 +16,32 @@ from sklearn import metrics
 
 def main():
     filename = "training.json"
-    visualize(filename)
-    #train(filename)
-    #proc_input()
+    #visualize(filename)
+    new_cases = proc_input()
+    X_train, X_test, y_train, y_test, classifier = train(filename)
+    evaluate_model(X_test, y_test, classifier)
+    new_cases_predicted = classifier.predict(new_cases)
+    print(new_cases_predicted[:10])
+
+def train(filename):
+    X, y = proc_data(filename)
+    """Split our data in train and test (33%)"""
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=42)
+    """ Create a pipeline to process data and predict in a more readable manner """
+    text_clf = Pipeline([
+        ('vect', CountVectorizer(max_df=.5, ngram_range=(1, 2))),
+        ('tfidf', TfidfTransformer()),
+        ('clf', SGDClassifier(max_iter=50, penalty='l2', alpha=1e-05)),
+    ])
+    text_clf = text_clf.fit(X_train.ravel(), y_train)
+    return X_train, X_test, y_train, y_test, text_clf
 
 def proc_input():
     concatenate = lambda el: el["question"].replace("\n", "")+" "+el["excerpt"].replace("\n", "")
     npred = int(input(""))
     json_questions = [json.loads(input("")) for _ in range(npred)]
-    X_predict = list(map(concatenate, json_questions))
-    return X_predict
+    new_cases = list(map(concatenate, json_questions))
+    return new_cases
 
 def proc_data(filename):
     """ Process the data in json and return the X and y in numpy format"""
@@ -45,34 +61,33 @@ def proc_data(filename):
     y = np.array(y, dtype=str)
     return X, y
 
-def visualize(filename):
-    X, y = proc_data(filename)
-    """Split our data in train and test (33%)"""
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
-    """Create a sparse matrix representation of a Bag of Words"""
-    # Also, removes stop words in english
-    #vectorizer = CountVectorizer(stop_words='english')
-    #X_train_bagw = vectorizer.fit_transform(X_train.ravel())
 
-    # The shape of our bag of words
-    # print(X_train_bagw.shape)
-    # Show what is the feature array like.
-    # Since X_train_bagw is a sparse data structure, this can be quite costly
-    # print(X_train_bagw.toarray()[:10, :10])
-    # Print some of the words name
-    # print(np.random.choice(vectorizer.get_feature_names(), size=10))
-    # Get what index is the word 'recharging' mapped to
-    # print(vectorizer.vocabulary_.get(u'recharging'))
-    """ Create a pipeline to process data and predict in a more readable manner """
-    text_clf = Pipeline([
-        ('vect', CountVectorizer(max_df=.5, ngram_range=(1, 2))),
-        ('tfidf', TfidfTransformer()),
-        ('clf', SGDClassifier(max_iter=50, penalty='elasticnet', alpha=1e-05)),
-    ])
-    text_clf = text_clf.fit(X_train.ravel(), y_train)
-    y_pred = text_clf.predict(X_test.ravel())
-    #print(np.mean(y_pred == y_test))
+def evaluate_model(X_test, y_test, classifier):
     """ Model evaluation metrics """
+    # In this case we need to flatten the array
+    y_pred = classifier.predict(X_test.ravel())
+    # Accuracy score
+    print('True:', y_test[0:5])
+    print('Pred:', y_pred[0:5])
+    # The classes in our classifier
+    print(f"Classes = {classifier.classes_}")
+    # The confusion matrix
+    print(f" Confusion Matrix = \n{metrics.confusion_matrix(y_test, y_pred)}\n\n")
+    # Classification Accuracy: how often is the classifier correct
+    print(f" Classification Accuracy = {metrics.accuracy_score(y_test, y_pred)}")
+    # Classification Error: how often is the classifier incorrect
+    print(f" Classification Error = {1 - metrics.accuracy_score(y_test, y_pred)}")
+    # RECALL/Sensitivity: When the actual value is positive, how often is the prediction correct?
+    # print(f" Recall = {metrics.recall_score(y_test, y_pred)}")
+    # This will return the precision scores for each class
+    print(f"\nRECALL (per class) = \n{metrics.recall_score(y_test, y_pred, average=None)}")
+    # will return the total ratio of tp/(tp + fp)
+    print(f"RECALL (overall) = {metrics.recall_score(y_test, y_pred, average='micro')}")
+    # PRECISION: When a positive value is predicted, how often is the prediction correct?
+    # print(f"PRECISION = {metrics.precision_score(y_test, y_pred)}") # Can't use default because we have more than 2 classes
+    print(f"PRECISION (per class) = {metrics.precision_score(y_test, y_pred, average=None)}")
+    print(f"PRECISION (overall) = {metrics.precision_score(y_test, y_pred, average='micro')}")
+
 
 
 def hyperparameter_search():
@@ -122,6 +137,34 @@ def hyperparameter_search():
     best_parameters = grid_search.best_estimator_.get_params()
     for param_name in sorted(parameters.keys()):
         print("\t%s: %r" % (param_name, best_parameters[param_name]))
+
+
+def visualize(filename):
+    X, y = proc_data(filename)
+    """Split our data in train and test (33%)"""
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+    """Create a sparse matrix representation of a Bag of Words"""
+    # Also, removes stop words in english
+    #vectorizer = CountVectorizer(stop_words='english')
+    #X_train_bagw = vectorizer.fit_transform(X_train.ravel())
+
+    # The shape of our bag of words
+    # print(X_train_bagw.shape)
+    # Show what is the feature array like.
+    # Since X_train_bagw is a sparse data structure, this can be quite costly
+    # print(X_train_bagw.toarray()[:10, :10])
+    # Print some of the words name
+    # print(np.random.choice(vectorizer.get_feature_names(), size=10))
+    # Get what index is the word 'recharging' mapped to
+    # print(vectorizer.vocabulary_.get(u'recharging'))
+    """ Create a pipeline to process data and predict in a more readable manner """
+    text_clf = Pipeline([
+        ('vect', CountVectorizer(max_df=.5, ngram_range=(1, 2), stop_words='english')),
+        ('tfidf', TfidfTransformer()),
+        ('clf', SGDClassifier(max_iter=50, penalty='elasticnet', alpha=1e-05)),
+    ])
+    text_clf = text_clf.fit(X_train.ravel(), y_train)
+    #print(np.mean(y_pred == y_test))
 
 
 if __name__ == '__main__':
