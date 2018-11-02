@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import json
 import string
 from urllib.request import urlretrieve
 import random as rnd
@@ -115,7 +116,8 @@ def create_snack_from_url(url:str, country:str=None, category:str=None):
         assert new_snack.folder_name != None
         if not os.path.exists("image/"):
             os.makedirs("image/")
-        os.makedirs("image/"+new_snack.folder_name)
+        if not os.path.exists("image/"+new_snack.folder_name):
+            os.makedirs("image/"+new_snack.folder_name)
         for link in img_links:
             img_name = link.split('/')[-1]
             urlretrieve(link, "image/"+new_snack.folder_name+f"/{img_name}")
@@ -163,7 +165,7 @@ def scrap_per_country() -> List:
     all_snacks = []
     #print(soup)
     # TODO: You can change the quantity of countries to scrap in the line below, by changing the array
-    for el in soup.find('div', class_='triple').find_all('li')[:1]:
+    for el in soup.find('div', class_='triple').find_all('li')[:9]:
         # Get a proxy
         """ print("Getting new proxy...")
         proxy = proxy_scrape.get_proxy()
@@ -198,6 +200,7 @@ def scrap_per_country() -> List:
 def main():
     snack_list = scrap_per_country()
     print(f"\n\n FINISH: {(len(snack_list))} Snacks created! \n Here's some of them:")
+    
     if len(snack_list) >= 10:
         start = rnd.randint(0, len(snack_list) - 6)
         for snack in snack_list[start:start + 5]:
@@ -205,6 +208,10 @@ def main():
     else:
         for snack in snack_list:
             print(snack)
+    data = json.dumps(list(map(lambda obj: obj.__dict__, snack_list)))
+    with open('snacks.json', 'w') as outfile:
+    	json.dump(data, outfile)
+    print("------ FINISHED --------")
 
 if __name__ == '__main__':
     main()
