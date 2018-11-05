@@ -17,11 +17,11 @@ from sklearn import metrics
 def main():
     filename = "training.json"
     #visualize(filename)
-    new_cases = proc_input()
+    #new_cases = proc_input()
     X_train, X_test, y_train, y_test, classifier = train(filename)
     evaluate_model(X_test, y_test, classifier)
-    new_cases_predicted = classifier.predict(new_cases)
-    print(new_cases_predicted[:10])
+    #new_cases_predicted = classifier.predict(new_cases)
+    #print(new_cases_predicted[:10])
 
 def train(filename):
     X, y = proc_data(filename)
@@ -87,6 +87,9 @@ def evaluate_model(X_test, y_test, classifier):
     # print(f"PRECISION = {metrics.precision_score(y_test, y_pred)}") # Can't use default because we have more than 2 classes
     print(f"PRECISION (per class) = {metrics.precision_score(y_test, y_pred, average=None)}")
     print(f"PRECISION (overall) = {metrics.precision_score(y_test, y_pred, average='micro')}")
+    print("---------------------------------------------------------------------")
+    print(f"{metrics.classification_report(y_test, y_pred)}")
+
 
 
 
