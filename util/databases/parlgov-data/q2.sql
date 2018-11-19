@@ -20,6 +20,8 @@ mostRecentlyWonElectionYear INT
 -- Select all elections in the valid range
 DROP VIEW IF EXISTS CrossedElections CASCADE;
 DROP VIEW IF EXISTS Party2Win CASCADE;
+DROP VIEW IF EXISTS QuantityParties CASCADE;
+DROP VIEW IF EXISTS CountryMeanWin CASCADE;
 DROP VIEW IF EXISTS Satisfy1 CASCADE;
 DROP VIEW IF EXISTS Satisfy2 CASCADE;
 DROP VIEW IF EXISTS Satisfy3 CASCADE;
@@ -41,7 +43,7 @@ WHERE votes = (SELECT MAX(votes)
                WHERE CEParent.id=CE.id)
 GROUP BY country_id, party_id;
 
--- All parties which satisfy the constraint
+/* -- All parties which satisfy the constraint: Here the average is only from parties that have won by the winning parties
 CREATE OR REPLACE VIEW Satisfy1 AS
 SELECT *
 FROM Party2Win as Parent
@@ -49,7 +51,28 @@ WHERE timesWon > (SELECT 3*AVG(timesWon) as meanWin
 FROM Party2Win as Child
 WHERE Child.country_id = Parent.country_id
 GROUP BY Child.country_id)
+ORDER BY party_id; */
+
+-- Hold  country_id | party_id | timeswon | qtdparties
+CREATE OR REPLACE VIEW QuantityParties AS
+SELECT *
+FROM Party2Win JOIN (SELECT Country.id as country_id, count(*) AS qtdParties
+FROM Country JOIN Party ON Country.id = Party.country_id
+GROUP BY Country.id) as CC USING(country_id);
+
+CREATE OR REPLACE VIEW CountryMeanWin AS
+SELECT country_id, 3*(SUM(timesWon)/AVG(qtdParties)) as meanWin
+FROM QuantityParties
+GROUP BY country_id;
+
+CREATE OR REPLACE VIEW Satisfy1 AS
+SELECT *
+FROM Party2Win as Parent
+WHERE timesWon > (SELECT meanWin
+FROM CountryMeanWin as Child
+WHERE Child.country_id = Parent.country_id)
 ORDER BY party_id;
+
 
 CREATE OR REPLACE VIEW Satisfy2 AS
 SELECT party_id, Satisfy1.country_id, id, year, timesWon as wonElections
