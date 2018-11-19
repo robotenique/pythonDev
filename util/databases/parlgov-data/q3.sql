@@ -28,10 +28,12 @@ DROP VIEW IF EXISTS Answer3 CASCADE;
 
 -- Table with id, country_id, year and participationRation
 CREATE OR REPLACE VIEW CrossedElections AS
-SELECT id, country_id,  (date_part('year', e_date)::INT) AS year, (COALESCE (votes_cast,0)/(cast(electorate as numeric))) AS participationRatio
+SELECT id, country_id,  (date_part('year', e_date)::INT) AS year, votes_cast/(cast(electorate as numeric)) AS participationRatio
 FROM Election
 WHERE  (date_part('year', e_date)::INT) >= 2001 AND
-       (date_part('year', e_date)::INT) <= 2016;
+       (date_part('year', e_date)::INT) <= 2016 AND
+       votes_cast IS NOT NULL AND
+       electorate IS NOT NULL;
 
 -- Have one election in all of the years between 2001 and 2016, so it's valid
 CREATE OR REPLACE VIEW Valid1 AS
