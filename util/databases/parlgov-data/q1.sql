@@ -72,7 +72,7 @@ WHERE party_range > 40.0);
 
 
 CREATE OR REPLACE VIEW Answer1 AS
-SELECT year, Country.name AS countryName, Party.name_short AS partyName, voteRange
+SELECT year, Country.name AS countryName, voteRange, Party.name_short AS partyName
 FROM Temp1 JOIN Country ON Temp1.country_id = Country.id
            JOIN Party   ON Temp1.party_id = Party.id;
 
