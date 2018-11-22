@@ -165,7 +165,7 @@ def scrap_per_country() -> List:
     all_snacks = []
     #print(soup)
     # TODO: You can change the quantity of countries to scrap in the line below, by changing the array
-    for el in soup.find('div', class_='triple').find_all('li')[:9]:
+    for el in soup.find('div', class_='triple').find_all('li')[9:]:
         # Get a proxy
         """ print("Getting new proxy...")
         proxy = proxy_scrape.get_proxy()
