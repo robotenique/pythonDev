@@ -1,4 +1,7 @@
+import org.omg.CORBA.INTERNAL;
+
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
 
 // If you are looking for Java data structures, these are highly useful.
@@ -10,7 +13,6 @@ import java.util.List;
 //import java.util.Set;
 //import java.util.HashSet;
 public class Assignment2 extends JDBCSubmission {
-    private Connection conn;
     public Assignment2() throws ClassNotFoundException {
 
         Class.forName("org.postgresql.Driver");
@@ -19,7 +21,7 @@ public class Assignment2 extends JDBCSubmission {
     @Override
     public boolean connectDB(String url, String username, String password) {
         try {
-            conn = DriverManager.getConnection(url, username, password);
+            super.connection = DriverManager.getConnection(url, username, password);
         }
         catch (SQLException e) {
             return false;
@@ -29,10 +31,10 @@ public class Assignment2 extends JDBCSubmission {
 
     @Override
     public boolean disconnectDB() {
-        if (conn == null)
+        if (super.connection == null)
             return false;
         try {
-            conn.close();
+            super.connection.close();
         } catch (SQLException e) {
             return false;
         }
@@ -43,49 +45,85 @@ public class Assignment2 extends JDBCSubmission {
     public ElectionCabinetResult electionSequence(String countryName) {
         PreparedStatement temp;
         ResultSet rsTemp;
-        "previous_parliament_election_id"
-                "previous_ep_election_id"
         int country_id;
         try {
-            PreparedStatement ps = conn.prepareStatement("SET SEARCH_PATH TO parlgov;");
-            ps.execute();
-             temp = conn.prepareStatement("SELECT id\n" +
-                                 "           FROM Country\n" +
-                                "            WHERE name = ?");
+            temp = super.connection.prepareStatement("SELECT id " +
+                                             "FROM Country " +
+                                             "WHERE name = ?;");
              temp.setString(1, countryName);
              rsTemp = temp.executeQuery();
 
              if (rsTemp.next())
                  country_id = rsTemp.getInt("id");
-             else // No country available!
-                 return null;
+             else // No country available, return empty;
+                 return new ElectionCabinetResult(new ArrayList<>(), new ArrayList<>());
 
-            /*
-
-            SELECT *
-            FROM Election
-            WHERE country_id =
-             */
-            PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Election where id=9");
-            ResultSet rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                int country_id_2 = rs.getInt("country_id");
-                int votes_valid = rs.getInt("votes_valid");
-                String e_type = rs.getString("e_type");
-                System.out.println("id: "+id+" , "+country_id_2+", "+votes_valid+", "+e_type);
+            temp = super.connection.prepareStatement("SELECT election_id, id as cabinet_id " +
+                                            "FROM Cabinet " +
+                                            "WHERE election_id IN (SELECT id as election_id " +
+                                                                  "FROM Election " +
+                                                                  "WHERE country_id = ?) " +
+                                            "ORDER BY election_id; ");
+            temp.setInt(1, country_id);
+            rsTemp = temp.executeQuery();
+            if (!rsTemp.isBeforeFirst())
+               return null; // There are no available cabinets from this country
+            List<Integer> eids = new ArrayList<>();
+            List<Integer> cids = new ArrayList<>();
+            while (rsTemp.next()) {
+                eids.add(rsTemp.getInt("election_id"));
+                cids.add(rsTemp.getInt("cabinet_id"));
             }
+            return new ElectionCabinetResult(eids, cids);
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return null;
+        return new ElectionCabinetResult(new ArrayList<>(), new ArrayList<>());
     }
 
     @Override
     public List<Integer> findSimilarPoliticians(Integer politicianName, Float threshold) {
         // Implement this method!
-        return null;
+        PreparedStatement temp;
+        ResultSet rsTemp;
+        int politician_id = politicianName;
+        String politician_fulltext;
+        String desc;
+        String comm;
+        try {
+            temp = super.connection.prepareStatement("SELECT id, description, comment " +
+                                            "FROM politician_president " +
+                                            "WHERE id = ?;");
+            temp.setInt(1, politician_id);
+            rsTemp = temp.executeQuery();
+            if (rsTemp.next()) {
+                desc = rsTemp.getString("description");
+                comm = rsTemp.getString("comment");
+                politician_fulltext = desc + " " + comm;
+            }
+            else // No politician available, return empty;
+                return new ArrayList<>();
+            temp = super.connection.prepareStatement("SELECT id,  description, comment " +
+                                           "FROM politician_president " +
+                                           "WHERE id <> ? ;");
+            temp.setInt(1, politician_id);
+            rsTemp = temp.executeQuery();
+            List<Integer> final_pol = new ArrayList<>();
+            while (rsTemp.next()) {
+                desc = rsTemp.getString("description");
+                comm = rsTemp.getString("comment");
+                String curr_fulltext = desc + " " + comm;
+                System.out.println(curr_fulltext);
+                if (similarity(politician_fulltext, curr_fulltext) > threshold)
+                    final_pol.add(rsTemp.getInt("id"));
+            }
+            return final_pol;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return new ArrayList<>();
     }
 
 
@@ -103,9 +141,8 @@ public class Assignment2 extends JDBCSubmission {
         }
         System.out.println("Hello");
         a2.connectDB(url, username, password);
-        a2.electionSequence("France");
-
-
+        System.out.println(a2.electionSequence("France"));
+        System.out.println(a2.findSimilarPoliticians(148, 0.1F));
         a2.disconnectDB();
     }
 
