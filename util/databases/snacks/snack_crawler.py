@@ -139,7 +139,7 @@ def scrap_snack_list(url:str, country:str=None) -> List:
         list_element = soup.find('div', id='longlist').find('ul').find_all('a')
     except:
         print(soup.prettify())
-        exit()
+        return snacks_from_list
     # Traverse the list and get every link
     for link in list_element:
         try:
@@ -147,6 +147,7 @@ def scrap_snack_list(url:str, country:str=None) -> List:
             snacks_from_list.append(create_snack_from_url(MAIN_LINK+rel_link, country=country))
         except:
             ValueError("Error while scraping snack list")
+            continue;
     return snacks_from_list
 
 def scrap_per_country() -> List:
@@ -165,7 +166,7 @@ def scrap_per_country() -> List:
     all_snacks = []
     #print(soup)
     # TODO: You can change the quantity of countries to scrap in the line below, by changing the array
-    for el in soup.find('div', class_='triple').find_all('li')[9:]:
+    for el in soup.find('div', class_='triple').find_all('li')[11]:
         # Get a proxy
         """ print("Getting new proxy...")
         proxy = proxy_scrape.get_proxy()
@@ -200,7 +201,7 @@ def scrap_per_country() -> List:
 def main():
     snack_list = scrap_per_country()
     print(f"\n\n FINISH: {(len(snack_list))} Snacks created! \n Here's some of them:")
-    
+
     if len(snack_list) >= 10:
         start = rnd.randint(0, len(snack_list) - 6)
         for snack in snack_list[start:start + 5]:
