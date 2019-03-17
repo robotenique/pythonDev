@@ -224,13 +224,13 @@ def run_trees(x, y, show_plt=False, plot_notebook=False, num_estimators=10, modu
                 ax1 = axs[i, 0]
                 ax2 = axs[i, 1]
             else:
-                fig, (ax1, ax2) = plt.subplots(1, 2, sharey=False, figsize=(13, 2.5))
+                fig, (ax1, ax2) = plt.subplots(1, 2, sharey=False, figsize=(18, 3))
             # AXIS 1: Current model prediction
             sns.scatterplot(x="x", y="y", data=x.assign(y=y), ax=ax1)
             sns.lineplot(x="xaxis", y="yaxis", data=curr_pred_df, ax=ax1, color="r")
-            ax1.set_title(f"Prediction i = {i + 1}", fontsize=20)
+            ax1.set_title(f"Prediction i = {i + 1}", fontsize=15)
             ax1.set_xlabel("x", fontsize=12)
-            ax1.set_ylabel("y and y_pred", fontsize=12)
+            ax1.set_ylabel("y", fontsize=12)
             ax1.legend(labels=['data points', 'prediction'], loc=4)
             leg = ax1.get_legend()
             leg.legendHandles[0].set_color('b')

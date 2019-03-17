@@ -19,5 +19,5 @@ $ conda env export >! env.yaml
 Use this command in the terminal for better visualization in *Jupyter notebook* (needs `jupyterthemes`)
 
 ```bash
-$ jt -t oceans16 -f roboto -fs 12 -cellw 100%
+$ jt -t grade3 -f roboto -fs 100 -altp -tfs 11 -nfs 115 -cellw 95% -T
 ```
