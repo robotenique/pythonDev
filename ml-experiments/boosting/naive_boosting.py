@@ -217,12 +217,15 @@ def run_trees(x, y, show_plt=False, plot_notebook=False, num_estimators=10, modu
         # Plot current prediction
         order = np.argsort(np.array(x["x"]))
         curr_pred_df = pd.DataFrame({"xaxis": np.array(x)[order].ravel(),
-                                     "yaxis": np.array(predf)[order].ravel()})
+                                     "yaxis": np.array(predf)[order].ravel(),
+                                     "resaxis": np.array(predi)[order].ravel()})
         if i in rows:
             if not plot_notebook:
                 ax1 = axs[i, 0]
+                ax2 = axs[i, 1]
             else:
-                fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(13, 2.5))
+                fig, (ax1, ax2) = plt.subplots(1, 2, sharey=False, figsize=(13, 2.5))
+            # AXIS 1: Current model prediction
             sns.scatterplot(x="x", y="y", data=x.assign(y=y), ax=ax1)
             sns.lineplot(x="xaxis", y="yaxis", data=curr_pred_df, ax=ax1, color="r")
             ax1.set_title(f"Prediction i = {i + 1}", fontsize=20)
@@ -232,6 +235,18 @@ def run_trees(x, y, show_plt=False, plot_notebook=False, num_estimators=10, modu
             leg = ax1.get_legend()
             leg.legendHandles[0].set_color('b')
             leg.legendHandles[1].set_color('r')
+
+            # AXIS 2: Current residual prediction
+            sns.scatterplot(x="x", y="residual", data=x.assign(residual=ei), ax=ax2, color="g")
+            sns.lineplot(x="xaxis", y="resaxis", data=curr_pred_df, ax=ax2, color="m")
+            ax2.set_title(f"Residual prediction i = {i + 1}", fontsize=20)
+            ax2.set_xlabel("x", fontsize=12)
+            ax2.set_ylabel("y - y_pred", fontsize=12)
+            ax2.legend(labels=['residual points', 'prediction'], loc=4)
+            leg = ax2.get_legend()
+            leg.legendHandles[0].set_color('g')
+            leg.legendHandles[1].set_color('m')
+
     if show_plt:
         plt.show()
 
@@ -239,7 +254,8 @@ def run_trees(x, y, show_plt=False, plot_notebook=False, num_estimators=10, modu
 if __name__ == "__main__":
     # Uncomment the examples below to check different functionalities
     #generate_data_cos()
-    #run_trees(*generate_data(plot=False), show_plt=True)
+    run_trees(*generate_data(plot=False), show_plt=True)
+    exit()
     from pprint import pprint
     diabetes = load_diabetes()
     x, y = diabetes["data"], diabetes["target"][:, None]

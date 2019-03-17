@@ -11,5 +11,13 @@ $ conda env create --file=env.yaml
 And if any change is made, you can save it again with:
 
 ```bash 
-$ conda env export > env.yaml
+$ conda env export >! env.yaml
+```
+
+## Jupyter notebook
+
+Use this command in the terminal for better visualization in *Jupyter notebook* (needs `jupyterthemes`)
+
+```bash
+$ jt -t oceans16 -f roboto -fs 12 -cellw 100%
 ```
