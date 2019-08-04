@@ -30,6 +30,7 @@ DATASET_PARAMETERS = dict(
     min_num_features=3,
     min_num_instances=1000,
     max_num_classes=100,
+    max_num_instances=5000000,
     max_nan_percentage=.2,
     train_percentage=.7
 )
@@ -75,6 +76,93 @@ if (logger.hasHandlers()):
     logger.handlers.clear()
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
+
+
+@fp.curry
+def hyperparameter_producer(hyperparameter_name, values=None, generate_fn=None, length=None,
+                            base_producer=None, all_combinations=False):
+    """
+    Returns a function that builds a list with dictionaries with values for hyperparameters.
+    You can either pass the values list directly using `values`, or pass a generator function and a
+    length parameter.
+    If a base_producer is provided, it will generate the combinations of hyperparameters from
+    the base_producer and the new one being built, e.g if the base_producer has {"max_depth", "colsample"}
+    and the new hyperparameter_name is "num_leaves", it will generate a list with the values like:
+        [{"num_leaves"},
+         {"max_depth", "colsample", "num_leaves"}]
+    if the all_combinations flag is true, it will generate all possible combinations, e.g.:
+        [{"num_leaves"},
+         {"max_depth", "num_leaves"},
+         {"colsample", "num_leaves"},
+         {"max_depth", "colsample", "num_leaves"}]
+
+    Parameters
+    ----------
+    hyperparameter_name : str
+        the name of the hyperparameter to generate
+    values: np.array or list
+        a list of values for the hyperparameter
+    generate_fn : lambda function
+        lambda function that when called generate one possible value of a hyperparameter
+    length : int
+        size of the list of values for the hyperparameter
+    base_producer: hyperparameter_producer
+        if it's passed, it will be used as a base to generate the combinations of hyperparameters
+    all_combinations: boolean
+        flag to indicate if all possible combinations fo hyperparameters will be generated
+    """
+
+    # must pass both or pass none
+    assert not((generate_fn is None) ^ (length is None))
+    if generate_fn is not None:
+        h_values = [generate_fn() for _ in range(length)]
+    elif values is not None:
+        h_values = values
+    else:
+        raise ValueError("You need to provide at least one hyperparameter base value!!")
+
+    def gen_space():
+        base_dict = {} if base_producer is None else fp.last(base_producer())
+        h_space = {hyperparameter_name: h_values}
+        space_list = []
+        full_space_list = []
+        if all_combinations and len(base_dict.keys()) >= 2:
+            space_list = [fp.merge({key: val}, h_space) for key, val in base_dict.items()]
+        if base_producer is not None:
+            full_space_list = [fp.merge(base_dict, h_space)]
+
+        return [h_space] + space_list + full_space_list
+    return gen_space
+
+
+def binary_hyperparameter_space(dataset):
+    # num_estimators
+    num_estimators_length = 20
+
+    def max_value_num_estimators(dsize):
+        # function that defines the maximum num_estimators depending on sample size
+        left_limit = 10000
+        right_limit = 300000
+        left_constant = 400
+        right_constant = 1700
+        a = (right_constant - left_constant) / (right_limit - left_limit)
+        b = left_constant - a
+        if dsize <= left_limit:
+            return left_constant
+        elif dsize >= right_limit:
+            return right_constant
+        else:
+            return a * dsize + b
+
+    def gen_num_estimators(dsize, max_value_fn, num=20):
+        return np.linspace(start=min(dsize / 4, 50), stop=max_value_fn(dsize), num=num, dtype=int)
+
+    num_est_prod = hyperparameter_producer(hyperparameter_name="num_estimators",
+                                           values=gen_num_estimators(dsize=dataset.shape[0],
+                                                                     max_value_fn=max_value_num_estimators,
+                                                                     num=num_estimators_length))
+    # TODO: learning rate
+    print(num_est_prod())
 
 
 def get_eval_fn_binary_classifier(evaluation_target, prediction_column):
@@ -151,10 +239,10 @@ def get_datasets_by_type(dataset_type):
             "NumberOfInstancesWithMissingValues",
         ]
     ].query(f"NumberOfInstances >= {DATASET_PARAMETERS['min_num_instances']} & \
+              NumberOfInstances <= {DATASET_PARAMETERS['max_num_instances']} & \
               NumberOfFeatures >= {DATASET_PARAMETERS['min_num_features']} & \
               NumberOfClasses <= {DATASET_PARAMETERS['max_num_classes']} & \
              NumberOfInstancesWithMissingValues <= {DATASET_PARAMETERS['max_nan_percentage']}*NumberOfInstances")
-
     logger.info(f"OpenML filtered dataset has shape: {openml_df.shape}")
     if dataset_type == "BINARY":
         binary_datasets = openml_df.query("NumberOfClasses == 2")
@@ -287,6 +375,31 @@ def run_training_binary(dataset, features, target, prediction_column, num_estima
     return lgbm_pipeline(dataset)
 
 
+# def build_hyperparameter_tree_binary(dataset):
+#     np.random.seed(RND_STATE_SEED)
+#     # learning rate
+#     learning_rate_values = np.geomspace(start=0.01, stop=10, num=30)
+#     # number of boosting iterations
+
+#     lr_prod = hyperparameter_producer(hyperparameter_name="learning_rate",
+#                                       generate_fn=lambda: np.random.uniform(., .62),
+#                                       length=10,
+#                                       values_arr=[])
+#     print("------------------------------------")
+#     # pprint(lr_prod())
+#     num_est_prod = hyperparameter_producer(hyperparameter_name="num_estimators",
+#                                            generate_fn=lambda: np.random.randint(1, 10),
+#                                            length=10,
+#                                            base_producer=lr_prod,
+#                                            all_combinations=True)
+#     print("------------------------------------")
+#     # pprint(num_est_prod())
+#     max_depth_prod = hyperparameter_producer(hyperparameter_name="max_depth",
+#                                              generate_fn=lambda: np.random.randint(1, 100),
+#                                              length=3,
+#                                              base_producer=num_est_prod,
+#                                              all_combinations=True)
+
 def binary_pipeline(dataset, target_col_name="target", output_prediction_column="prediction"):
     logger.info(colorize.green(f"[1] Building dataset..."))
     dataset_info = build_full_dataset(dataset, target_col_name=target_col_name)
@@ -302,6 +415,7 @@ def binary_pipeline(dataset, target_col_name="target", output_prediction_column=
                                                 categorical_indicator=dataset_info.categorical_indicator)
 
     logger.info(colorize.green(f"[2] Building hyperparamer distribution..."))
+    print(binary_hyperparameter_space(full_dataset))
     # lgbm hyperparameters
     learning_rate = 0.1
     num_estimators = 30
@@ -312,7 +426,7 @@ def binary_pipeline(dataset, target_col_name="target", output_prediction_column=
         "nthread": cpu_count(),
         "verbose": -1
     }
-    
+
     logger.info("\tsplitting dataset...")
     x_train, x_test, y_train, y_test = train_test_split(
         full_dataset[feature_set],
