@@ -655,7 +655,7 @@ def binary_pipeline(dataset, target_col_name="target", output_prediction_column=
 def run_binary_pipeline():
     datasets = get_datasets_by_type(dataset_type="BINARY")
     already_calculated = get_calculated_dids(model_type="BINARY")
-    MAX_DATASETS_TO_FETCH = 10
+    MAX_DATASETS_TO_FETCH = 30
     did_vals = datasets.did.values[:MAX_DATASETS_TO_FETCH]
     for did in did_vals:
         if did in already_calculated:
@@ -663,7 +663,6 @@ def run_binary_pipeline():
             continue
         logger.info(f"running binary pipeline for dataset with DID: {did}")
         binary_pipeline(dataset=openml.datasets.get_dataset(int(did)))
-
 
 
 def offline_test():
