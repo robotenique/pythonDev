@@ -15,8 +15,10 @@ import toolz as fp
 from sklearn.model_selection import train_test_split
 
 from fklearn.training.classification import lgbm_classification_learner
-from fklearn.training.exploration import (dataset_analyzer,
-                                          statistics_dict_to_df)
+# from fklearn.training.exploration import (dataset_analyzer,
+                                        #   statistics_dict_to_df)
+from exploration import (dataset_analyzer,
+                         statistics_dict_to_df)
 from fklearn.training.pipeline import build_pipeline
 from fklearn.training.transformation import label_categorizer
 from fklearn.validation.evaluators import (auc_evaluator,
