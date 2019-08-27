@@ -2,13 +2,18 @@ import functools
 import gc
 import logging
 import operator
-from itertools import product, starmap
+from collections import defaultdict
+from itertools import product
 from multiprocessing import cpu_count
+from pathlib import Path
 
+import cloudpickle
 import numpy as np
 import openml
 import pandas as pd
 import toolz as fp
+from sklearn.model_selection import train_test_split
+
 from fklearn.training.classification import lgbm_classification_learner
 from fklearn.training.exploration import (dataset_analyzer,
                                           statistics_dict_to_df)
@@ -18,7 +23,6 @@ from fklearn.validation.evaluators import (auc_evaluator,
                                            brier_score_evaluator,
                                            combined_evaluators,
                                            logloss_evaluator)
-from sklearn.model_selection import train_test_split
 
 
 # TODO: do a warm start
@@ -52,7 +56,7 @@ HYPERPARAMETERS_CONFIG = dotdict(dict(
     num_estimators_length=20,  # number of num_estimator values to generate
     lr_length=6,  # number of learning rate values to generate
     max_depth_length=20,  # number of max_pdeth values to generate,
-    default_lgbm_main_params = {
+    default_lgbm_main_params={
         "num_estimators": 30,
         "learning_rate": 0.1
     },
@@ -84,12 +88,13 @@ class colorize():
     def cyan(text):
         return f"\033[1;96m{text}\033[39m"
 
-    def White(text):
+    def white(text):
         return f"\033[1;97m{text}\033[39m"
 
 
 def flat_list(a):
     return functools.reduce(operator.iconcat, a, [])
+
 
 # ------------------------- Logging configuration -------------------------
 logger = logging.getLogger()
@@ -132,7 +137,7 @@ def get_datasets_by_type(dataset_type):
     if dataset_type == "BINARY":
         binary_datasets = openml_df.query("NumberOfClasses == 2")
         logger.info(f"Returning binary datasets, shape: {binary_datasets.shape}")
-        return binary_datasets
+        return binary_datasets.sort_values(by="did")
     else:
         raise AttributeError("dataset_type is invalid!")
 
@@ -432,8 +437,6 @@ def run_training_binary(dataset, features, target, prediction_column, extra_para
                         num_estimators=None, learning_rate=None, contains_categorical=None,
                         columns_to_categorize=None):
     default_params = HYPERPARAMETERS_CONFIG.default_lgbm_main_params
-    # must pass both or pass none
-    assert not((not contains_categorical) ^ (columns_to_categorize is None))
     num_estimators = default_params["num_estimators"] if num_estimators is None else num_estimators
     learning_rate = default_params["learning_rate"] if learning_rate is None else learning_rate
     # if there's at least one categorical feature use the label_categorizer
@@ -456,8 +459,15 @@ def run_training_binary(dataset, features, target, prediction_column, extra_para
             ),
         )
 
-    log(lgbm_pipeline)
     return lgbm_pipeline(dataset)
+
+
+def retrieve_extra_params(remaining_params):
+    if remaining_params is not None and "max_depth" in remaining_params and "num_leaves" not in remaining_params:
+        remaining_params = fp.merge(remaining_params,
+                                    dict(num_leaves=min(2**15, 2**remaining_params["max_depth"] - 1)))
+    return fp.merge(remaining_params,
+                    HYPERPARAMETERS_CONFIG.default_lgbm_extra_params)
 
 
 @fp.curry
@@ -494,30 +504,25 @@ def binary_model_experiment(dataset, hyperparameter_tree, analyzer_info, predict
             Single dictionary with hyperparameters to run the experiments (single level
             dictionary)
         """
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11")
-
-        n_keys = len(hp_dict.keys())
         hp_names = hp_dict.keys()
         lr_name = "learning_rate"
         num_est_name = "num_estimators"
+        experiment_logs = []
         get_last_param = fp.compose(fp.last, fp.last)
         def get_lr(_): return None
         def get_num_est(_): return None
+
         def filter_extra_params(hp):
-            return filter(lambda t: t[0] != lr_name and t[0] != num_est_name, hp)
+            return dict(filter(lambda t: t[0] != lr_name and t[0] != num_est_name, hp))
         if lr_name in hp_names:
             def get_lr(hp): return get_last_param(filter(lambda t: t[0] == lr_name, hp))
         if num_est_name in hp_names:
             def get_num_est(hp): return get_last_param(filter(lambda t: t[0] == num_est_name, hp))
 
+        logger.info(colorize.cyan(f"\n\t\t Running current hyperparameter space: {hp_dict}"))
         for hp_combination in product(*(zip(np.repeat([k], len(v)), v) for k, v in hp_dict.items())):
-            
             lr, num_est = get_lr(hp_combination), get_num_est(hp_combination)
-
-            remaining_params = dict(filter_extra_params(hp_combination))       
-            extra_params = fp.merge(remaining_params,
-                                    HYPERPARAMETERS_CONFIG.default_lgbm_extra_params)
-
+            extra_params = retrieve_extra_params(filter_extra_params(hp_combination))
             model, scored_df, logs = run_training_binary(
                 dataset=dataset.train_set,
                 features=analyzer_info.feature_set,
@@ -529,32 +534,71 @@ def binary_model_experiment(dataset, hyperparameter_tree, analyzer_info, predict
                 contains_categorical=analyzer_info.contains_categorical,
                 columns_to_categorize=analyzer_info.categorical_features
             )
-            
-            train_result = eval_fn(scored_df)
-            test_result = eval_fn(model(dataset.test_set))
-            print(train_result)
-            print(test_result)
-            exit()
+
+            train_result = dict(train_result=eval_fn(scored_df))
+            test_result = dict(test_result=eval_fn(model(dataset.test_set)))
+            training_time = logs["lgbm_classification_learner"]["running_time"]
+            logger.info(colorize.yellow(f"\n\t\t\t {training_time}"))
+            del scored_df
+            gc.collect()
+
+            experiment_logs.append(fp.merge(fp.merge(dict(hp_combination), extra_params),
+                                            train_result,
+                                            test_result,
+                                            dict(training_time=training_time)))
+        return experiment_logs
 
     # TODO: Pipeline for training
-    res = fp.pipe(hyperparameter_tree,
-                  fp.curried.map(lambda hp: hp()),
-                  flat_list,
-                  fp.curried.map(lambda hp: train_eval_fn(eval_fn=eval_fn, hp_dict=hp)),  # function expect  a dataset
-                  fp.curried.map(lambda run: run(dataset=dataset))
-                  
-                  )
-    from pprint import pprint
-    pprint(list(res))
+    logs = fp.pipe(hyperparameter_tree,
+                   fp.curried.map(lambda hp: hp()),
+                   flat_list,
+                   fp.curried.map(lambda hp: train_eval_fn(eval_fn=eval_fn, hp_dict=hp)),  # function expects a dataset
+                   fp.curried.map(lambda run: run(dataset=dataset)),
+                   flat_list)
+    return logs
 
 
+def save_experiment(model_type, did, openml_object, analyzer_info, shapes, hp_tree, final_result):
+    base_bath = Path(model_type)
+    base_bath.mkdir(exist_ok=True)
+    model_path = Path(model_type + "/" + str(did))
+    model_path.mkdir(exist_ok=True)
+    namepath = model_type + "/" + str(did) + "/"
+
+    open(namepath + "openml_object.pkl", "wb").write(cloudpickle.dumps(openml_object))
+    open(namepath + "analyzer_info.pkl", "wb").write(cloudpickle
+                                                     .dumps(dict(
+                                                         feature_set=analyzer_info.feature_set,
+                                                         target=analyzer_info.target,
+                                                         contains_categorical=analyzer_info.contains_categorical,
+                                                         categorical_features=analyzer_info.categorical_features)))
+    open(namepath + "shape.pkl", "wb").write(cloudpickle.dumps(shapes))
+    open(namepath + "hp_tree.pkl", "wb").write(cloudpickle.dumps(hp_tree))
+    open(namepath + "final_result.pkl", "wb").write(cloudpickle.dumps(final_result))
+    analyzer_info["df_stats"].to_pickle(namepath + "df_stats.pkl")
+
+
+def get_calculated_dids(model_type):
+    """
+    Returns a set with all the calculated dataset ids. This is useful to do a warm start,
+    the program doesn't need to run again the same did two times!
+    If there's no base folder, it returns an empty set
+    Parameters
+    ----------
+    model_type : str
+        string representing the model type
+    """
+    base_path = Path(model_type)
+    if base_path.is_dir():
+        return set((int(child.__str__().replace(model_type + "/", ""))
+                    for child in base_path.iterdir()))
+    return set()
 
 
 def binary_pipeline(dataset, target_col_name="target", output_prediction_column="prediction"):
     logger.info(colorize.green(f"[1] Building dataset..."))
     dataset_info = build_full_dataset(dataset, target_col_name=target_col_name)
     full_dataset = dataset_info.full_dataset
-    label_categorizer_map = dataset_info.label_categorizer_map
     logger.info(f"\tdataset shape: {full_dataset.shape}")
     logger.info(f"\tdataset columns: {full_dataset.columns}")
 
@@ -566,9 +610,12 @@ def binary_pipeline(dataset, target_col_name="target", output_prediction_column=
 
     logger.info(colorize.green(f"[3] Building hyperparamer distribution..."))
     hp_tree = binary_hyperparameter_space(full_dataset,
-                                          num_estimators_length=HYPERPARAMETERS_CONFIG.num_estimators_length,
-                                          lr_length=HYPERPARAMETERS_CONFIG.lr_length,
-                                          max_depth_length=HYPERPARAMETERS_CONFIG.max_depth_length,
+                                          #   num_estimators_length=HYPERPARAMETERS_CONFIG.num_estimators_length,
+                                          #   lr_length=HYPERPARAMETERS_CONFIG.lr_length,
+                                          #   max_depth_length=HYPERPARAMETERS_CONFIG.max_depth_length,
+                                          num_estimators_length=2,
+                                          lr_length=2,
+                                          max_depth_length=1,
                                           seed=RND_STATE_SEED)
 
     logger.info(colorize.green(f"[4] Splitting dataset..."))
@@ -584,21 +631,36 @@ def binary_pipeline(dataset, target_col_name="target", output_prediction_column=
                           prediction_column=output_prediction_column,
                           model_type="BINARY")
 
-    logger.info(colorize.green(f"[6] Running  model experiment..."))
-    binary_model_experiment(dataset=dotdict(dict(train_set=train_set, test_set=test_set)),
-                            hyperparameter_tree=hp_tree,
-                            analyzer_info=analyzer_info,
-                            prediction_column=output_prediction_column,
-                            eval_fn=eval_fn)
-    logger.info(colorize.cyan("Finished Training!"))
+    logger.info(colorize.green(f"[6] Running model experiment..."))
+    final_result = binary_model_experiment(dataset=dotdict(dict(train_set=train_set, test_set=test_set)),
+                                           hyperparameter_tree=hp_tree,
+                                           analyzer_info=analyzer_info,
+                                           prediction_column=output_prediction_column,
+                                           eval_fn=eval_fn)
+
+    logger.info(colorize.green(f"[7] Saving logs..."))
+    save_experiment(
+        model_type="BINARY",
+        did=dataset.dataset_id,
+        openml_object=dataset,
+        analyzer_info=analyzer_info,
+        shapes=dict(train_set=train_set.shape, test_set=test_set.shape),
+        hp_tree=hp_tree,
+        final_result=final_result
+    )
+    logger.info(colorize.magenta("Finished Training!"))
 
 
 # TODO: generalize this pipeline to other types of classification problems
 def run_binary_pipeline():
     datasets = get_datasets_by_type(dataset_type="BINARY")
-    MAX_DATASETS_TO_FETCH = 1
+    already_calculated = get_calculated_dids(model_type="BINARY")
+    MAX_DATASETS_TO_FETCH = 10
     did_vals = datasets.did.values[:MAX_DATASETS_TO_FETCH]
     for did in did_vals:
+        if did in already_calculated:
+            logger.info(colorize.yellow(f" Skipping dataset... DID - {did}"))
+            continue
         logger.info(f"running binary pipeline for dataset with DID: {did}")
         binary_pipeline(dataset=openml.datasets.get_dataset(int(did)))
 
@@ -613,26 +675,26 @@ def offline_test():
         )
     )
     hp_space = binary_hyperparameter_space(full_dataset,
-                                           num_estimators_length=HYPERPARAMETERS_CONFIG.num_estimators_length,
-                                           lr_length=HYPERPARAMETERS_CONFIG.lr_length,
-                                           max_depth_length=HYPERPARAMETERS_CONFIG.max_depth_length,
+                                           num_estimators_length=2,
+                                           lr_length=2,
+                                           max_depth_length=1,
                                            seed=RND_STATE_SEED)
 
-    info =  dotdict(
+    info = dotdict(
         dict(df_stats=pd.DataFrame({"oi": [11]}),
              feature_set=["a"],
              target="target",
              contains_categorical=False,
              categorical_features=None
              )
-        )
+    )
     train_set, test_set = dataset_split(full_dataset,
                                         feature_set=info.feature_set,
                                         target=info.target,
                                         train_percentage=DATASET_PARAMETERS.train_percentage,
                                         seed=RND_STATE_SEED)
-    
-    binary_model_experiment(
+
+    res = binary_model_experiment(
         dataset=dotdict(dict(train_set=train_set, test_set=test_set)),
         hyperparameter_tree=hp_space,
         analyzer_info=info,
@@ -641,5 +703,8 @@ def offline_test():
             target_column="target", prediction_column="prediction"
         )
     )
+
+
 if __name__ == "__main__":
-     run_binary_pipeline()
+    run_binary_pipeline()
+    # offline_test()
