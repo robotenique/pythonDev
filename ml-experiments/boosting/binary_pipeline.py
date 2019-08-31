@@ -2,7 +2,6 @@ import functools
 import gc
 import logging
 import operator
-from collections import defaultdict
 from itertools import product
 from multiprocessing import cpu_count
 from pathlib import Path
@@ -15,8 +14,6 @@ import toolz as fp
 from sklearn.model_selection import train_test_split
 
 from fklearn.training.classification import lgbm_classification_learner
-# from fklearn.training.exploration import (dataset_analyzer,
-                                        #   statistics_dict_to_df)
 from exploration import (dataset_analyzer,
                          statistics_dict_to_df)
 from fklearn.training.pipeline import build_pipeline
@@ -27,13 +24,8 @@ from fklearn.validation.evaluators import (auc_evaluator,
                                            logloss_evaluator)
 
 
-# TODO: do a warm start
-def log(s):
-    print("######################################################################")
-    print(s)
-    print("######################################################################")
-# ----------------------------- Global Contants ---------------------------
 
+# ----------------------------- Global Contants ---------------------------
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
@@ -97,7 +89,6 @@ class colorize():
 def flat_list(a):
     return functools.reduce(operator.iconcat, a, [])
 
-
 # ------------------------- Logging configuration -------------------------
 logger = logging.getLogger()
 handler = logging.StreamHandler()
@@ -108,6 +99,19 @@ if (logger.hasHandlers()):
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
+def log(s):
+    """
+    Prints a string surrounded by ###; Useful for debugging
+    Parameters
+    ----------
+    s : str
+        string for debugging
+    """
+    print("######################################################################")
+    print(s)
+    print("######################################################################")
+    
+# ------------------------- Main binary pipeline functions  -------------------------
 
 def get_datasets_by_type(dataset_type):
     """
@@ -300,6 +304,34 @@ def hyperparameter_producer(hyperparameter_name, values=None, generate_fn=None, 
 
 
 def binary_hyperparameter_space(dataset, num_estimators_length=20, lr_length=20, max_depth_length=20, seed=None):
+    """
+    Construct a hyperparameter space for binary classification problems. This hyperparameter tree contains
+    the following structure:
+                        learning_rate
+                              |
+                              |
+                        num_estimators
+                              |
+                              |
+                          max_depth
+
+    The specific space for each of them can be checked in the plots description, but basically
+    some of them have a fixed distribution e.g. max_depth, and others like num_estimators depend
+    on the actual size of the dataset (dsize).
+
+    Parameters
+    ----------
+    dataset : DataFrame
+        the original full dataset
+    num_estimators_length : int
+        Number of num_estimators values to generate
+    lr_length : int
+        Number of learning_rate values to generate
+    max_depth_length : int
+        Number of max_depth values to generate
+    seed : int
+        Seed for reproducibility
+    """
     if seed is not None:
         np.random.seed(seed)
 
@@ -438,11 +470,35 @@ def get_eval_fn(evaluation_target, prediction_column, model_type):
 def run_training_binary(dataset, features, target, prediction_column, extra_params=None,
                         num_estimators=None, learning_rate=None, contains_categorical=None,
                         columns_to_categorize=None):
+    """
+    Run a single training of a lgbm_classifier model. This returns the basic applied learner,
+    which is the predict function, the scored dataset and the logs from the pipeline
+    Parameters
+    ----------
+    dataset : pd.DataFrame
+        Pandas dataframe of the full dataset
+    features : list
+        Features of the model
+    target : str
+        target column
+    prediction_column : str
+        name of the prediction column
+    extra_params : dict
+        dict with the extra params of the lgbm_classifier
+    num_estimators : float
+        number of boosting rounds
+    learning_rate : float
+        learning rate to test
+    contains_categorical : bool
+        boolean to indicate if the current dataset contains categorical values
+    columns_to_categorize : list like
+        List of the names of categorical features
+    """
     default_params = HYPERPARAMETERS_CONFIG.default_lgbm_main_params
     num_estimators = default_params["num_estimators"] if num_estimators is None else num_estimators
     learning_rate = default_params["learning_rate"] if learning_rate is None else learning_rate
+    
     # if there's at least one categorical feature use the label_categorizer
-    # TODO: can I get the default value of keyargs?? then I just need to get them from the lgbm_classification_learner
     if contains_categorical:
         lgbm_pipeline = build_pipeline(
             label_categorizer(
@@ -465,6 +521,14 @@ def run_training_binary(dataset, features, target, prediction_column, extra_para
 
 
 def retrieve_extra_params(remaining_params):
+    """
+    Auxiliar function that returns the extra params if available, alongside the
+    extra_params (default_lgbm_extra_params)
+    Parameters
+    ----------
+    remaining_params : dict
+        dict with the possible extra params
+    """
     if remaining_params is not None and "max_depth" in remaining_params and "num_leaves" not in remaining_params:
         remaining_params = fp.merge(remaining_params,
                                     dict(num_leaves=min(2**15, 2**remaining_params["max_depth"] - 1)))
@@ -561,6 +625,26 @@ def binary_model_experiment(dataset, hyperparameter_tree, analyzer_info, predict
 
 
 def save_experiment(model_type, did, openml_object, analyzer_info, shapes, hp_tree, final_result):
+    """
+    Save the final experiment in a folder with a given dataset id  (did), in different
+    pickle files for each object.
+    Parameters
+    ----------
+    model_type : str
+        String representing the model type
+    did : int
+        the dataset id
+    openml_object : openml dataset
+        Openml object
+    analyzer_info : dict
+        The analyzer info dict containing the basic automatic statistical analysis of a dataframe
+    shapes : tuple
+        Tuple representing the shape of the dataframe
+    hp_tree : tuple of functions
+        Tuple where each element is a leaf of a hyperparameter space
+    final_result : list of dicts
+        List of dicts containg the evaluation of each run of a model training
+    """
     base_bath = Path(model_type)
     base_bath.mkdir(exist_ok=True)
     model_path = Path(model_type + "/" + str(did))
@@ -598,6 +682,24 @@ def get_calculated_dids(model_type):
 
 
 def binary_pipeline(dataset, target_col_name="target", output_prediction_column="prediction"):
+    """
+    Main function that defines a binary classification task experiment. The pipeline is defined as:
+        1 -> build dataset
+        2 -> analyze dataset
+        3 -> create hyperparameter space tree
+        4 -> split dataset
+        5 -> create evaluator function
+        6 -> run final model experiment
+        7 -> save all the outputs in a specific folder
+    Parameters
+    ----------
+    dataset : openml dataset object
+        OpenML object which represents a dataset
+    target_col_name : string
+        the name of the target column
+    output_prediction_column : str
+        name of the prediction column of the classifier
+    """
     logger.info(colorize.green(f"[1] Building dataset..."))
     dataset_info = build_full_dataset(dataset, target_col_name=target_col_name)
     full_dataset = dataset_info.full_dataset
@@ -612,12 +714,12 @@ def binary_pipeline(dataset, target_col_name="target", output_prediction_column=
 
     logger.info(colorize.green(f"[3] Building hyperparamer distribution..."))
     hp_tree = binary_hyperparameter_space(full_dataset,
-                                          #   num_estimators_length=HYPERPARAMETERS_CONFIG.num_estimators_length,
-                                          #   lr_length=HYPERPARAMETERS_CONFIG.lr_length,
-                                          #   max_depth_length=HYPERPARAMETERS_CONFIG.max_depth_length,
-                                          num_estimators_length=2,
-                                          lr_length=2,
-                                          max_depth_length=1,
+                                          num_estimators_length=HYPERPARAMETERS_CONFIG.num_estimators_length,
+                                          lr_length=HYPERPARAMETERS_CONFIG.lr_length,
+                                          max_depth_length=HYPERPARAMETERS_CONFIG.max_depth_length,
+                                          #   num_estimators_length=2,
+                                          #   lr_length=2,
+                                          #   max_depth_length=1,
                                           seed=RND_STATE_SEED)
 
     logger.info(colorize.green(f"[4] Splitting dataset..."))
@@ -653,11 +755,16 @@ def binary_pipeline(dataset, target_col_name="target", output_prediction_column=
     logger.info(colorize.magenta("Finished Training!"))
 
 
-# TODO: generalize this pipeline to other types of classification problems
 def run_binary_pipeline():
-    datasets = get_datasets_by_type(dataset_type="BINARY")
-    already_calculated = get_calculated_dids(model_type="BINARY")
+    """
+    Fetch datasets by binary type, and run a binary_pipeline for each of them.
+    This is the 'main' function to be run in this file.
+    """
+    # How many datasets to load and run experiments
     MAX_DATASETS_TO_FETCH = 30
+    datasets = get_datasets_by_type(dataset_type="BINARY")
+    # I use a warming start to avoid redundant computation on the same dataset
+    already_calculated = get_calculated_dids(model_type="BINARY")
     did_vals = datasets.did.values[:MAX_DATASETS_TO_FETCH]
     for did in did_vals:
         if did in already_calculated:
@@ -668,6 +775,11 @@ def run_binary_pipeline():
 
 
 def offline_test():
+    """
+    Simple debug function that creates a sample dataset with toy data. Useful when
+    developing new functionalities
+    This doesn't run the full binary pipeline
+    """
     np.random.seed(RND_STATE_SEED)
     full_dataset = pd.DataFrame(
         dict(
