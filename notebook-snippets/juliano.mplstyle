@@ -22,17 +22,17 @@ grid.alpha: 0.8                 # transparency level
 axes.axisbelow: True            # Sets axis gridlines below lines and patches.
 
 # Setting font sizes and spacing
-axes.labelsize: 18              # font size of the x and y labels
-xtick.labelsize: 18             # font size of the x tick labels      
-ytick.labelsize: 18             # font size of the y tick labels
-font.size: 18                   # default font size for text, given in points.
+axes.labelsize: 15              # font size of the x and y labels
+xtick.labelsize: 15             # font size of the x tick labels      
+ytick.labelsize: 15             # font size of the y tick labels
+font.size: 15                   # default font size for text, given in points.
 xtick.major.pad: 8              # distance to major tick label in points  
 ytick.major.pad: 12             # distance to major tick label in points
 
 # Title styling
 axes.titlelocation: left        # alignment of the title: {left, right, center}
 axes.titlepad: 20               # pad between axes and title in points
-axes.titlesize: 28              # font size of the axes title
+axes.titlesize: 20              # font size of the axes title
 axes.titleweight: bold          # font weight of title
 
 # Remove major and minor ticks except for on the x-axis.
