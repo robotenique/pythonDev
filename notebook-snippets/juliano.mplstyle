@@ -10,7 +10,7 @@ axes.spines.right: False
 axes.spines.bottom: True
 
 # Set line styling for line plots
-lines.linewidth: 4              # line width in points
+lines.linewidth: 2              # line width in points
 lines.solid_capstyle: butt      # Makes a square ending of the line stopping at datapoint
 
 # Grid style
