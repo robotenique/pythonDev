@@ -45,7 +45,7 @@ ytick.minor.size: 0
 figure.subplot.left: 0.08       # the left side of the subplots of the figure
 figure.subplot.right: 0.95      # the right side of the subplots of the figure
 figure.subplot.bottom: 0.07     # the bottom of the subplots of the figure
-figure.figsize: 13, 7          # figure size in inches
+figure.figsize: 7, 4          # figure size in inches
 figure.dpi: 120                 # figure dots per inch
 
 # Properties for saving the figure. Ensure a high DPI when saving so we have a good resolution.
