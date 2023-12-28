@@ -20,7 +20,18 @@ JsonRead = Union[List[Any], Dict[str, Any]]
     2. Click on the Menu
     3. Click on "Print, export, and share"
     4. Click on "Export as JSON"
+
+    But the process above is not perfect - what can be exported is limited - so to get the complete data (full picture),
+    we need to manually query the Trello API to get the actual actions we want.
 """
+
+    
+# Data loading
+
+def load_data(json_file_path: str) -> Dict[str, Any]:
+    with open(json_file_path, "r") as file:
+        data = json.load(file)
+    return data
 
 def get_api(yaml_file_name="trello_config.yaml"):
     print(f"\t\tTrying to load API info from {yaml_file_name}...")
@@ -31,14 +42,7 @@ def get_api(yaml_file_name="trello_config.yaml"):
     assert config.get("API_TOKEN") is not None
     return config
 
-    
-
-def load_data(json_file_path: str) -> Dict[str, Any]:
-    with open(json_file_path, "r") as file:
-        data = json.load(file)
-    return data
-
-
+# Data Cleaning
 def remove_empty_values(data: JsonRead) -> JsonRead:
     """
     Recursively removes empty values from a JSON-like data structure.
@@ -56,7 +60,20 @@ def remove_empty_values(data: JsonRead) -> JsonRead:
     else:
         return data
 
+def remove_archived(cards: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Removes archived cards from the given list of cards.
 
+    Args:
+        cards (list): A list of cards.
+
+    Returns:
+        list: A new list of cards without the archived cards.
+    """
+    return [card for card in cards if not card.get("closed")]
+
+
+# Data Extraction 
 @fp.curry
 def extract_valid_keys(
     cards: JsonRead, valid_keys: Tuple[str] = ("id", "name", "desc", "idList", "labels", "stars", "pos")
@@ -81,19 +98,6 @@ def extract_valid_keys(
         return cleaned_card
 
     return [valid_map(card) for card in cards]
-
-
-def remove_archived(cards: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Removes archived cards from the given list of cards.
-
-    Args:
-        cards (list): A list of cards.
-
-    Returns:
-        list: A new list of cards without the archived cards.
-    """
-    return [card for card in cards if not card.get("closed")]
 
 
 def extract_stars_from_plugin_data(
@@ -122,7 +126,7 @@ def extract_stars_from_plugin_data(
                     card["stars"] = value_json.get("stars")
     return cards
 
-
+# Data Organization
 @fp.curry
 def add_list_info(cards: List[Dict[str, Any]], list_mapping: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
@@ -157,6 +161,47 @@ def organize_cards_by_list(cards: List[Dict[str, Any]]) -> Dict[str, List[Dict[s
     sorted_grouped_cards = {list_id: sorted(group, key=itemgetter("pos")) for list_id, group in grouped_cards.items()}
     return sorted_grouped_cards
 
+# Data Processing
+def process_list_structure(data: JsonRead) -> Dict[str, Dict[str, Any]]:
+    cleaned_list: List[Dict[str, Any]] = fp.pipe(data["lists"], extract_valid_keys(valid_keys=("id", "name", "pos")))
+    # this maps the list id to the list info
+    list_id_to_info: Dict[str, Dict[str, Any]] = {lst["id"]: lst for lst in cleaned_list}
+    return list_id_to_info
+
+def process_card_structure(
+    data: JsonRead, list_id_to_info: Dict[str, Dict[str, Any]]
+) -> Dict[str, List[Dict[str, Any]]]:
+    cleaned_cards: List[Dict[str, Any]] = fp.pipe(
+        data["cards"],
+        remove_archived,
+        extract_stars_from_plugin_data,
+        extract_valid_keys,
+        add_list_info(list_mapping=list_id_to_info),
+        organize_cards_by_list
+    )
+    return cleaned_cards
+
+
+def general_trello_music_pipeline(
+    json_file_path: str,
+) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, List[Dict[str, Any]]], JsonRead]:
+    # 1. Load the data
+    print(f"1. Loading data from {json_file_path}...")
+    data: JsonRead = load_data(json_file_path)
+    # 2. Remove empty values
+    print("2. Removing empty values...")
+    cleaned_data: JsonRead = remove_empty_values(data)
+    # 3. Process the lists data
+    print("3. Processing the lists data...")
+    list_id_to_info: Dict[str, Dict[str, Any]] = process_list_structure(cleaned_data)
+    # 4. Process the cards data
+    print("4. Processing the cards data...")
+    cards_with_stars: Dict[str, Dict[str, Any]] = process_card_structure(cleaned_data, list_id_to_info)
+    # now, cards_with_stars is organized like the Trello UI itself List -> Card order
+    print("Done!")
+    return list_id_to_info, cards_with_stars, cleaned_data
+
+# API request
 def trello_api_request_actions(
     boardId: str, typeAction: str = "createCard", date_filter: str = "2023-01-01", limit: int = 1000
 ) -> List[Dict[str, Any]]:
@@ -221,47 +266,8 @@ def build_creation_at_data(cards_df: pd.DataFrame, board_id: str) -> pd.DataFram
     cards_df = cards_df.merge(createdAt_actions, left_on="id", right_on="card_id", how="left")
     return cards_df
 
-def process_list_structure(data: JsonRead) -> Dict[str, Dict[str, Any]]:
-    cleaned_list: List[Dict[str, Any]] = fp.pipe(data["lists"], extract_valid_keys(valid_keys=("id", "name", "pos")))
-    # this maps the list id to the list info
-    list_id_to_info: Dict[str, Dict[str, Any]] = {lst["id"]: lst for lst in cleaned_list}
-    return list_id_to_info
 
-
-def process_card_structure(
-    data: JsonRead, list_id_to_info: Dict[str, Dict[str, Any]]
-) -> Dict[str, List[Dict[str, Any]]]:
-    cleaned_cards: List[Dict[str, Any]] = fp.pipe(
-        data["cards"],
-        remove_archived,
-        extract_stars_from_plugin_data,
-        extract_valid_keys,
-        add_list_info(list_mapping=list_id_to_info),
-        organize_cards_by_list
-    )
-    return cleaned_cards
-
-
-def general_trello_music_pipeline(
-    json_file_path: str,
-) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, List[Dict[str, Any]]], JsonRead]:
-    # 1. Load the data
-    print(f"1. Loading data from {json_file_path}...")
-    data: JsonRead = load_data(json_file_path)
-    # 2. Remove empty values
-    print("2. Removing empty values...")
-    cleaned_data: JsonRead = remove_empty_values(data)
-    # 3. Process the lists data
-    print("3. Processing the lists data...")
-    list_id_to_info: Dict[str, Dict[str, Any]] = process_list_structure(cleaned_data)
-    # 4. Process the cards data
-    print("4. Processing the cards data...")
-    cards_with_stars: Dict[str, Dict[str, Any]] = process_card_structure(cleaned_data, list_id_to_info)
-    # now, cards_with_stars is organized like the Trello UI itself List -> Card order
-    print("Done!")
-    return list_id_to_info, cards_with_stars, cleaned_data
-
-
+# Data Conversion 
 def cards_to_dataframe(cards_with_stars: Dict[str, List[Dict[str, Any]]]) -> pd.DataFrame:
     """
     Convert a dictionary of cards with stars into a pandas DataFrame.
