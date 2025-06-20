@@ -249,7 +249,7 @@ def build_creation_at_data(cards_df: pd.DataFrame, board_id: str) -> pd.DataFram
             typeAction="createCard",
             date_filter=dt,
         )
-        print(f"\t Total entries: [{len(curr_res)}]")
+        # print(f"\t Total entries: [{len(curr_res)}]") # TODO: manually commented
         mega_data_aggregator.extend(curr_res)
     
     # remove duplicate entries 
@@ -293,15 +293,21 @@ def cards_to_dataframe(cards_with_stars: Dict[str, List[Dict[str, Any]]]) -> pd.
     return df_all_cards
 
 if __name__ == "__main__":
-    json_file_path = "trello_music_board_data_backup_2023_11_20.json"
+    # json_file_path = "./trello_backup_2024_12_23.json"
+    json_file_path = "util/trello-analysis/music-proc/trello_backup_2024_12_23.json"
     # 1. Load the data
     data: JsonRead = load_data(json_file_path)
     # 2. Remove empty values
     cleaned_data: JsonRead = remove_empty_values(data)
+    print("------- Cleanup -------")
     print(cleaned_data["id"])
     # 3. Process the lists data
     list_id_to_info: Dict[str, Dict[str, Any]] = process_list_structure(cleaned_data)
+    some_id = list(list_id_to_info.keys())[0]
+    # print(list_id_to_info[some_id])
+    print(fp.keyfilter(lambda k: k["id"] == some_id, cleaned_data))
     # 4. Process the cards data
     cards_with_stars: Dict[str, Dict[str, Any]] = process_card_structure(cleaned_data, list_id_to_info)
     # now, cards_with_stars is organized like the Trello UI itself List -> Card order
+    print("------- Cards with stars -------")
     print(cards_with_stars.keys())

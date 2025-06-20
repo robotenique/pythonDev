@@ -4,6 +4,9 @@ trello_config.yaml
 __pycache__/
 *.py[cod]
 *$py.class
+ENV.md
+*.mplstyle
+.vscode/
 
 # C extensions
 *.so

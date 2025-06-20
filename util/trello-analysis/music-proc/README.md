@@ -13,8 +13,8 @@ This folder has a quick script and corresponding notebook that will perform the 
 - Download the Trello data from the board through: Menu -> Print, export, and share -> Export as JSON. This should be saved on the same folder;
 - Create a yaml file `trello_config.yaml` with the following structure:
 ```yaml
-api_key: <your_api_key>
-api_secret: <your_api_secret>
+API_KEY: <your_trello_api_key>
+API_TOKEN: <your_trello_api_token>
 ```
 - On the script `trello_music_board_processor.py`, change the variable `json_file_path` to the path of the downloaded json file;
 - Run the script `trello_music_board_processor.py` to test if everything is working;
@@ -24,3 +24,4 @@ api_secret: <your_api_secret>
 
 
 You can get a Trello API key and token through the Power-ups and Integrations of Trello [here](https://trello.com/power-ups/admin).
+The API_TOKEN however need to be re-generated everytime, from the same link above!
